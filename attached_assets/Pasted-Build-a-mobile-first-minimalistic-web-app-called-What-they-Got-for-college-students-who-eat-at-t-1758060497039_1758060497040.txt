@@ -1,0 +1,88 @@
+Build a mobile-first, minimalistic web app called "What they Got?" for college students who eat at the University Dining Center at Minnesota State University, Mankato (MNSU).
+This is a student-run project, not affiliated with the university.
+
+🎯 Purpose
+
+Give students a one-stop social feed to:
+
+Check today’s DC menu without navigating the official Sodexo site.
+
+Rate and review menu items with stars, short text, and emojis.
+
+Share photos of their plates and spot what’s actually bussin’.
+
+⚡ Core Features (MVP)
+
+Daily Menu Feed
+
+Scrape https://mnsu.sodexomyway.com/en-us/locations/university-dining-center twice per day.
+
+Capture: date, meal_period (breakfast/lunch/dinner), station, item_name, calories (if listed), and allergens.
+
+Automatically update a public feed with no manual input.
+
+Ratings & Reviews (Open)
+
+Anyone can post a 1–5 star rating with optional text and emoji reactions.
+
+Include lightweight anti-spam (rate-limit per device/IP, basic profanity filter).
+
+Photo Uploads
+
+Allow one image per review.
+
+Provide basic moderation (flag system + admin dashboard to hide unsafe images).
+
+Report Menu Issue
+
+Simple button to flag incorrect menu info (ties to the specific item/date).
+
+🌱 Nice-to-Have (if easy)
+
+Calories Calculator: users select items to auto-sum calories using scraped data.
+
+PWA Support: installable on phones with an app icon and offline cache for the last fetched menu.
+
+Optional Digest: email or push notification when the new daily menu goes live.
+
+🎨 Design & Vibe
+
+Aesthetic: minimal + dope. Think black/charcoal background, white text, one bold accent (mint #6EE7B7 or violet #7C3AED).
+
+Typography: modern sans like Inter or Space Grotesk.
+
+Layout:
+
+Home: “Today’s Menu” → cards grouped by meal period, horizontal swipe for stations.
+
+Item Detail: calories, allergens, reviews thread, emoji reactions row, “Add Review” & “Report Issue” buttons pinned at bottom.
+
+Admin Dashboard: simple list of flagged reviews/photos with toggle controls.
+
+📊 Data Model
+
+MenuItems: id, date, meal_period, station, item_name, calories, allergens, source_url, image_url (nullable), created_at
+
+Reviews: id, menu_item_id (FK), rating, emoji (string/array), text, photo_url (nullable), device_id, is_flagged (bool), created_at
+
+Reports: id, menu_item_id (FK), issue_text, device_id, status (open/resolved), created_at
+
+ScrapeRuns (optional): id, started_at, status, items_added, errors
+
+🛠️ Deployment & Automation
+
+Use free-tier-friendly hosting (e.g., Supabase, Firebase, or built-in platform DB).
+
+Set up a scheduled job (cron) to scrape and update the MenuItems table twice daily.
+
+Provide one-click deploy or clear steps to run locally and on free hosting.
+
+✅ Acceptance Criteria
+
+On a phone, I can open the site, instantly see today’s menu, tap an item, and post a review (stars + text + emoji) with an optional photo.
+
+Reports and flagged photos appear in the admin dashboard for moderation.
+
+The scraper updates menu items automatically twice per day.
+
+(If built) the calories calculator correctly sums selected items.
