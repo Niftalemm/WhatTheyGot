@@ -1,10 +1,12 @@
 import { useState } from "react";
+import AppBanner from "@/components/AppBanner";
 import HeroSection from "@/components/HeroSection";
 import MealPeriodTabs from "@/components/MealPeriodTabs";
 import StationCarousel from "@/components/StationCarousel";
 import MenuCard from "@/components/MenuCard";
 import ReviewModal from "@/components/ReviewModal";
 import ReportModal from "@/components/ReportModal";
+import CalorieCounter from "@/components/CalorieCounter";
 import { TabsContent } from "@/components/ui/tabs";
 import breakfastImage from '@assets/generated_images/University_breakfast_spread_hero_5b900fb1.png';
 import lunchImage from '@assets/generated_images/University_lunch_spread_hero_3f701dd6.png';
@@ -95,10 +97,17 @@ const mockMenuItems = {
   ],
 };
 
+interface CalorieItem {
+  id: string;
+  name: string;
+  calories: number;
+}
+
 export default function MenuPage() {
   const [activeStation, setActiveStation] = useState('grill');
   const [reviewModal, setReviewModal] = useState({ isOpen: false, itemName: '', itemId: '' });
   const [reportModal, setReportModal] = useState({ isOpen: false, itemName: '', itemId: '' });
+  const [calorieItems, setCalorieItems] = useState<CalorieItem[]>([]);
 
   const handleRate = (itemId: string, rating: number) => {
     console.log(`Rated item ${itemId} with ${rating} stars`);
@@ -126,6 +135,20 @@ export default function MenuPage() {
     console.log('Report submitted:', report);
   };
 
+  const handleAddToCalorieCounter = (item: CalorieItem) => {
+    if (!calorieItems.find(i => i.id === item.id)) {
+      setCalorieItems(prev => [...prev, item]);
+    }
+  };
+
+  const handleRemoveFromCalorieCounter = (itemId: string) => {
+    setCalorieItems(prev => prev.filter(item => item.id !== itemId));
+  };
+
+  const handleClearCalorieCounter = () => {
+    setCalorieItems([]);
+  };
+
   const getHeroImage = (mealPeriod: string) => {
     switch (mealPeriod) {
       case 'breakfast': return breakfastImage;
@@ -136,16 +159,24 @@ export default function MenuPage() {
   };
 
   return (
-    <div className="space-y-6 pb-20">
-      <HeroSection
-        title="What they Got?"
-        subtitle="Real reviews from MNSU students"
-        backgroundImage={breakfastImage}
-        currentMeal="Breakfast"
-        lastUpdated="8:30 AM"
+    <div className="pb-20">
+      <AppBanner />
+      
+      <CalorieCounter
+        selectedItems={calorieItems}
+        onRemoveItem={handleRemoveFromCalorieCounter}
+        onClear={handleClearCalorieCounter}
       />
 
-      <div className="px-4 space-y-6">
+      <div className="space-y-6 px-4 pt-6">
+        <HeroSection
+          title="MNSU Dining Center"
+          subtitle="Real reviews from students"
+          backgroundImage={breakfastImage}
+          currentMeal="Breakfast"
+          lastUpdated="8:30 AM"
+        />
+
         <StationCarousel
           stations={mockStations}
           onStationSelect={setActiveStation}
@@ -160,9 +191,11 @@ export default function MenuPage() {
                   <MenuCard
                     key={item.id}
                     {...item}
+                    isInCalorieCounter={calorieItems.some(ci => ci.id === item.id)}
                     onRate={handleRate}
                     onReview={handleReview}
                     onReport={handleReport}
+                    onAddToCalorieCounter={item.calories ? handleAddToCalorieCounter : undefined}
                   />
                 ))}
               </div>

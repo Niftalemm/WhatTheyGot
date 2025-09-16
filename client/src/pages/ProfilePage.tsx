@@ -38,15 +38,17 @@ const recentActivity = [
 
 export default function ProfilePage() {
   return (
-    <div className="space-y-6 px-4 pb-20">
-      <div className="sticky top-0 bg-background/95 backdrop-blur-sm py-4 z-10">
+    <div className="pb-20">
+      <div className="sticky top-0 bg-background/95 backdrop-blur-sm py-4 px-4 z-10 border-b border-border">
         <h1 className="text-2xl font-bold" data-testid="text-profile-title">
           Your Profile
         </h1>
       </div>
 
-      {/* User Info */}
-      <Card>
+      <div className="space-y-6 px-4 pt-6">
+
+        {/* User Info */}
+        <Card>
         <CardContent className="pt-6">
           <div className="flex items-center gap-4">
             <Avatar className="w-16 h-16">
@@ -71,8 +73,8 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4">
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-4">
         <Card className="text-center">
           <CardContent className="pt-4">
             <div className="text-2xl font-bold text-primary" data-testid="text-reviews-count">
@@ -110,8 +112,8 @@ export default function ProfilePage() {
         </Card>
       </div>
 
-      {/* Recent Activity */}
-      <Card>
+        {/* Recent Activity */}
+        <Card>
         <CardHeader>
           <CardTitle data-testid="text-activity-title">Recent Activity</CardTitle>
         </CardHeader>
@@ -152,18 +154,19 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
-      {/* Quick Actions */}
-      <div className="space-y-3">
-        <h3 className="font-semibold">Quick Actions</h3>
-        <div className="space-y-2">
-          <Button variant="outline" className="w-full justify-start" data-testid="button-view-reviews">
-            <MessageSquare className="w-4 h-4 mr-2" />
-            View All My Reviews
-          </Button>
-          <Button variant="outline" className="w-full justify-start" data-testid="button-report-issue">
-            <Flag className="w-4 h-4 mr-2" />
-            Report an Issue
-          </Button>
+        {/* Quick Actions */}
+        <div className="space-y-3">
+          <h3 className="font-semibold">Quick Actions</h3>
+          <div className="space-y-2">
+            <Button variant="outline" className="w-full justify-start" data-testid="button-view-reviews">
+              <MessageSquare className="w-4 h-4 mr-2" />
+              View All My Reviews
+            </Button>
+            <Button variant="outline" className="w-full justify-start" data-testid="button-report-issue">
+              <Flag className="w-4 h-4 mr-2" />
+              Report an Issue
+            </Button>
+          </div>
         </div>
       </div>
     </div>

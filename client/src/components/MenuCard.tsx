@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Star, MessageCircle, Flag } from "lucide-react";
+import { Star, MessageCircle, Flag, Plus } from "lucide-react";
 import { useState } from "react";
 
 interface MenuItemProps {
@@ -13,9 +13,11 @@ interface MenuItemProps {
   rating: number;
   reviewCount: number;
   image?: string;
+  isInCalorieCounter?: boolean;
   onRate: (itemId: string, rating: number) => void;
   onReview: (itemId: string) => void;
   onReport: (itemId: string) => void;
+  onAddToCalorieCounter?: (item: { id: string; name: string; calories: number }) => void;
 }
 
 export default function MenuCard({
@@ -27,9 +29,11 @@ export default function MenuCard({
   rating,
   reviewCount,
   image,
+  isInCalorieCounter = false,
   onRate,
   onReview,
-  onReport
+  onReport,
+  onAddToCalorieCounter
 }: MenuItemProps) {
   const [userRating, setUserRating] = useState(0);
   const [hoveredStar, setHoveredStar] = useState(0);
@@ -117,6 +121,19 @@ export default function MenuCard({
         </div>
 
         <div className="flex gap-2">
+          {calories && onAddToCalorieCounter && (
+            <Button
+              variant={isInCalorieCounter ? "default" : "outline"}
+              size="sm"
+              className="gap-2"
+              onClick={() => onAddToCalorieCounter({ id, name, calories })}
+              disabled={isInCalorieCounter}
+              data-testid={`button-add-calories-${id}`}
+            >
+              <Plus className="w-4 h-4" />
+              {isInCalorieCounter ? "Added" : "Add"}
+            </Button>
+          )}
           <Button 
             variant="outline" 
             size="sm" 

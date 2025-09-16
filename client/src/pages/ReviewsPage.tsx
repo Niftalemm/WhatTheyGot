@@ -57,8 +57,8 @@ const mockReviews = [
 
 export default function ReviewsPage() {
   return (
-    <div className="space-y-4 px-4 pb-20">
-      <div className="sticky top-0 bg-background/95 backdrop-blur-sm py-4 z-10">
+    <div className="pb-20">
+      <div className="sticky top-0 bg-background/95 backdrop-blur-sm py-4 px-4 z-10 border-b border-border">
         <h1 className="text-2xl font-bold" data-testid="text-reviews-title">
           Recent Reviews
         </h1>
@@ -66,8 +66,9 @@ export default function ReviewsPage() {
           See what students are saying
         </p>
       </div>
+      
+      <div className="space-y-4 px-4 pt-6">
 
-      <div className="space-y-4">
         {mockReviews.map((review) => (
           <Card key={review.id} className="hover-elevate" data-testid={`card-review-${review.id}`}>
             <CardHeader className="pb-3">
