@@ -1,3 +1,4 @@
+// Using the javascript_database blueprint code snippet
 import { Pool, neonConfig } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import ws from "ws";
