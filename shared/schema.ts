@@ -51,6 +51,18 @@ export const scrapeRuns = pgTable("scrape_runs", {
   errors: json("errors").$type<string[]>().default([]),
 });
 
+// Admin messages for announcements to users
+export const adminMessages = pgTable("admin_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  type: text("type").notNull(), // announcement, alert, info, warning
+  isActive: boolean("is_active").default(true),
+  showOn: json("show_on").$type<string[]>().default([]), // pages to show on: ['reviews', 'menu', 'all']
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Define relations
 export const menuItemsRelations = relations(menuItems, ({ many }) => ({
   reviews: many(reviews),
@@ -97,6 +109,12 @@ export const insertScrapeRunSchema = createInsertSchema(scrapeRuns).omit({
   startedAt: true,
 });
 
+export const insertAdminMessageSchema = createInsertSchema(adminMessages).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type MenuItem = typeof menuItems.$inferSelect;
 export type InsertMenuItem = z.infer<typeof insertMenuItemSchema>;
@@ -109,3 +127,6 @@ export type InsertReport = z.infer<typeof insertReportSchema>;
 
 export type ScrapeRun = typeof scrapeRuns.$inferSelect;
 export type InsertScrapeRun = z.infer<typeof insertScrapeRunSchema>;
+
+export type AdminMessage = typeof adminMessages.$inferSelect;
+export type InsertAdminMessage = z.infer<typeof insertAdminMessageSchema>;

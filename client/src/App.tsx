@@ -8,10 +8,15 @@ import BottomNav from "@/components/BottomNav";
 import MenuPage from "@/pages/MenuPage";
 import ReviewsPage from "@/pages/ReviewsPage";
 import ProfilePage from "@/pages/ProfilePage";
+import AdminLogin from "@/pages/AdminLogin";
+import AdminDashboard from "@/pages/AdminDashboard";
+import AdminMenu from "@/pages/AdminMenu";
+import AdminMessages from "@/pages/AdminMessages";
 import NotFound from "@/pages/not-found";
 import { useState } from "react";
+import { useLocation } from "wouter";
 
-function Router() {
+function MainApp() {
   const [activeTab, setActiveTab] = useState('menu');
 
   const renderPage = () => {
@@ -39,6 +44,26 @@ function Router() {
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );
+}
+
+function Router() {
+  const [location] = useLocation();
+
+  // Check if we're on an admin route
+  if (location.startsWith('/admin')) {
+    return (
+      <Switch>
+        <Route path="/admin/login" component={AdminLogin} />
+        <Route path="/admin/dashboard" component={AdminDashboard} />
+        <Route path="/admin/menu" component={AdminMenu} />
+        <Route path="/admin/messages" component={AdminMessages} />
+        <Route component={NotFound} />
+      </Switch>
+    );
+  }
+
+  // Default to main app with bottom navigation
+  return <MainApp />;
 }
 
 function App() {

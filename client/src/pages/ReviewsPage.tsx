@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Star } from "lucide-react";
+import AdminMessages from "@/components/AdminMessages";
 
 //todo: remove mock functionality
 const mockReviews = [
@@ -65,6 +66,10 @@ export default function ReviewsPage() {
         <p className="text-muted-foreground">
           See what students are saying
         </p>
+      </div>
+      
+      <div className="px-4">
+        <AdminMessages page="reviews" className="mt-4" />
       </div>
       
       <div className="space-y-4 px-4 pt-6">

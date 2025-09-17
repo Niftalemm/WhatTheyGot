@@ -1,9 +1,10 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertReviewSchema, insertReportSchema } from "@shared/schema";
+import { insertReviewSchema, insertReportSchema, insertAdminMessageSchema, insertMenuItemSchema } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { menuScraper } from "./scraper";
+import jwt from "jsonwebtoken";
 
 function generateDeviceId(req: any): string {
   // Simple device fingerprint based on headers and IP
@@ -14,6 +15,42 @@ function generateDeviceId(req: any): string {
   // Create a hash-like string (not cryptographically secure, just for basic spam prevention)
   const fingerprint = Buffer.from(`${userAgent}-${ip}-${acceptLanguage}`).toString("base64");
   return fingerprint.substring(0, 32);
+}
+
+// JWT secret key for signing tokens
+const JWT_SECRET = process.env.JWT_SECRET || "fallback_jwt_secret_change_in_production";
+const JWT_EXPIRES_IN = "24h"; // Token expires in 24 hours
+
+// Secure admin authentication middleware using JWT
+function requireAdmin(req: any, res: any, next: any) {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: "Admin authentication required" });
+  }
+  
+  const token = authHeader.split(' ')[1];
+  
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    
+    // Verify this is an admin token
+    if (decoded.type !== 'admin') {
+      return res.status(401).json({ error: "Invalid admin token" });
+    }
+    
+    // Attach admin info to request for potential future use
+    req.admin = decoded;
+    next();
+  } catch (error: any) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: "Admin token expired. Please login again." });
+    } else if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ error: "Invalid admin token" });
+    } else {
+      return res.status(401).json({ error: "Token verification failed" });
+    }
+  }
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -169,10 +206,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Scraper Routes
-  app.post("/api/scrape/run", async (req, res) => {
+  // Scraper Routes - now require admin authentication for security
+  app.post("/api/scrape/run", requireAdmin, async (req, res) => {
     try {
-      console.log("Manual scrape triggered");
+      console.log("Manual scrape triggered by admin");
       await menuScraper.runDailyScrape();
       res.json({ 
         success: true, 
@@ -229,6 +266,163 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Initialization failed:", error);
       res.status(500).json({ error: "Failed to initialize" });
+    }
+  });
+
+  // ========== ADMIN ROUTES ==========
+  
+  // Admin authentication - secure JWT implementation
+  app.post("/api/admin/login", async (req, res) => {
+    try {
+      const { password } = req.body;
+      const adminPassword = process.env.ADMIN_PASSWORD || "mnsu2024admin";
+      
+      if (password !== adminPassword) {
+        return res.status(401).json({ error: "Invalid admin password" });
+      }
+      
+      // Generate secure JWT token
+      const token = jwt.sign(
+        {
+          type: 'admin',
+          iat: Math.floor(Date.now() / 1000),
+          // Add additional claims if needed
+        },
+        JWT_SECRET,
+        { expiresIn: JWT_EXPIRES_IN }
+      );
+      
+      res.json({ 
+        token,
+        message: "Admin authentication successful",
+        expiresIn: JWT_EXPIRES_IN 
+      });
+    } catch (error) {
+      console.error("Admin login error:", error);
+      res.status(500).json({ error: "Login failed" });
+    }
+  });
+
+  // Admin token validation endpoint
+  app.get("/api/admin/validate", requireAdmin, (req, res) => {
+    res.json({ 
+      valid: true, 
+      admin: req.admin,
+      message: "Token is valid" 
+    });
+  });
+
+  // Admin dashboard stats
+  app.get("/api/admin/stats", requireAdmin, async (req, res) => {
+    try {
+      const stats = await storage.getAppStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching admin stats:", error);
+      res.status(500).json({ error: "Failed to fetch stats" });
+    }
+  });
+
+  // Manual menu item management
+  app.post("/api/admin/menu-items", requireAdmin, async (req, res) => {
+    try {
+      const validatedData = insertMenuItemSchema.parse(req.body);
+      const menuItem = await storage.createMenuItem(validatedData);
+      res.json(menuItem);
+    } catch (error) {
+      console.error("Error creating menu item:", error);
+      res.status(500).json({ error: "Failed to create menu item" });
+    }
+  });
+
+  app.post("/api/admin/menu-items/bulk", requireAdmin, async (req, res) => {
+    try {
+      const { items } = req.body;
+      const validatedItems = items.map((item: any) => insertMenuItemSchema.parse(item));
+      const menuItems = await storage.bulkCreateMenuItems(validatedItems);
+      res.json(menuItems);
+    } catch (error) {
+      console.error("Error bulk creating menu items:", error);
+      res.status(500).json({ error: "Failed to create menu items" });
+    }
+  });
+
+  // Public endpoint for fetching active admin messages (for users to see)
+  app.get("/api/messages", async (req, res) => {
+    try {
+      const { page } = req.query;
+      const messages = await storage.getActiveAdminMessages(page as string);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching admin messages:", error);
+      res.status(500).json({ error: "Failed to fetch messages" });
+    }
+  });
+
+  // Admin message management
+  app.get("/api/admin/messages", requireAdmin, async (req, res) => {
+    try {
+      const messages = await storage.getAllAdminMessages();
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching admin messages:", error);
+      res.status(500).json({ error: "Failed to fetch messages" });
+    }
+  });
+
+  app.post("/api/admin/messages", requireAdmin, async (req, res) => {
+    try {
+      const validatedData = insertAdminMessageSchema.parse(req.body);
+      const message = await storage.createAdminMessage(validatedData);
+      res.json(message);
+    } catch (error) {
+      console.error("Error creating admin message:", error);
+      res.status(500).json({ error: "Failed to create message" });
+    }
+  });
+
+  app.put("/api/admin/messages/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      await storage.updateAdminMessage(id, updates);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating admin message:", error);
+      res.status(500).json({ error: "Failed to update message" });
+    }
+  });
+
+  app.delete("/api/admin/messages/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteAdminMessage(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting admin message:", error);
+      res.status(500).json({ error: "Failed to delete message" });
+    }
+  });
+
+  // Admin report management
+  app.get("/api/admin/reports", requireAdmin, async (req, res) => {
+    try {
+      const reports = await storage.getOpenReports();
+      res.json(reports);
+    } catch (error) {
+      console.error("Error fetching reports:", error);
+      res.status(500).json({ error: "Failed to fetch reports" });
+    }
+  });
+
+  app.put("/api/admin/reports/:id/resolve", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.resolveReport(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error resolving report:", error);
+      res.status(500).json({ error: "Failed to resolve report" });
     }
   });
 

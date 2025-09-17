@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import AppBanner from "@/components/AppBanner";
+import AdminMessages from "@/components/AdminMessages";
 import HeroSection from "@/components/HeroSection";
 import MealPeriodTabs from "@/components/MealPeriodTabs";
 import StationCarousel from "@/components/StationCarousel";
@@ -207,6 +208,9 @@ export default function MenuPage() {
     return (
       <div className="pb-20">
         <AppBanner />
+        <div className="px-4">
+          <AdminMessages page="menu" className="mt-4" />
+        </div>
         <div className="px-4 pt-6">
           <div className="text-center py-8">
             <p className="text-muted-foreground">Loading today's menu...</p>
@@ -226,6 +230,9 @@ export default function MenuPage() {
   return (
     <div className="pb-20">
       <AppBanner />
+      <div className="px-4">
+        <AdminMessages page="menu" className="mt-4" />
+      </div>
       
       <CalorieCounter
         selectedItems={calorieItems}

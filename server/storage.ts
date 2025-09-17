@@ -7,10 +7,13 @@ import {
   type InsertReport,
   type ScrapeRun,
   type InsertScrapeRun,
+  type AdminMessage,
+  type InsertAdminMessage,
   menuItems,
   reviews,
   reports,
-  scrapeRuns
+  scrapeRuns,
+  adminMessages
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte } from "drizzle-orm";
@@ -37,6 +40,21 @@ export interface IStorage {
   createScrapeRun(run: InsertScrapeRun): Promise<ScrapeRun>;
   updateScrapeRun(id: string, updates: Partial<ScrapeRun>): Promise<void>;
   getRecentScrapeRuns(limit?: number): Promise<ScrapeRun[]>;
+  
+  // Admin Messages
+  createAdminMessage(message: InsertAdminMessage): Promise<AdminMessage>;
+  getActiveAdminMessages(page?: string): Promise<AdminMessage[]>;
+  getAllAdminMessages(): Promise<AdminMessage[]>;
+  updateAdminMessage(id: string, updates: Partial<AdminMessage>): Promise<void>;
+  deleteAdminMessage(id: string): Promise<void>;
+  
+  // Admin Analytics
+  getAppStats(): Promise<{
+    totalReviews: number;
+    totalMenuItems: number;
+    totalReports: number;
+    recentActivity: any[];
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -156,6 +174,101 @@ export class DatabaseStorage implements IStorage {
       .from(scrapeRuns)
       .orderBy(desc(scrapeRuns.startedAt))
       .limit(limit);
+  }
+
+  // Admin Messages
+  async createAdminMessage(message: InsertAdminMessage): Promise<AdminMessage> {
+    const [created] = await db.insert(adminMessages).values(message as any).returning();
+    return created;
+  }
+
+  async getActiveAdminMessages(page?: string): Promise<AdminMessage[]> {
+    let query = db
+      .select()
+      .from(adminMessages)
+      .where(eq(adminMessages.isActive, true))
+      .orderBy(desc(adminMessages.createdAt));
+    
+    const messages = await query;
+    
+    if (page) {
+      return messages.filter(msg => 
+        msg.showOn && (msg.showOn.includes('all') || msg.showOn.includes(page))
+      );
+    }
+    
+    return messages;
+  }
+
+  async getAllAdminMessages(): Promise<AdminMessage[]> {
+    return await db
+      .select()
+      .from(adminMessages)
+      .orderBy(desc(adminMessages.createdAt));
+  }
+
+  async updateAdminMessage(id: string, updates: Partial<AdminMessage>): Promise<void> {
+    await db
+      .update(adminMessages)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(adminMessages.id, id));
+  }
+
+  async deleteAdminMessage(id: string): Promise<void> {
+    await db.delete(adminMessages).where(eq(adminMessages.id, id));
+  }
+
+  // Admin Analytics
+  async getAppStats(): Promise<{
+    totalReviews: number;
+    totalMenuItems: number;
+    totalReports: number;
+    recentActivity: any[];
+  }> {
+    // Get totals
+    const totalReviews = await db.select().from(reviews).then(rows => rows.length);
+    const totalMenuItems = await db.select().from(menuItems).then(rows => rows.length);
+    const totalReports = await db.select().from(reports).then(rows => rows.length);
+    
+    // Get recent activity (reviews, reports)
+    const recentReviews = await db
+      .select({
+        id: reviews.id,
+        content: reviews.text,
+        rating: reviews.rating,
+        createdAt: reviews.createdAt,
+        menuItemId: reviews.menuItemId
+      })
+      .from(reviews)
+      .orderBy(desc(reviews.createdAt))
+      .limit(10);
+
+    const recentReportsData = await db
+      .select({
+        id: reports.id,
+        content: reports.issueText,
+        issueType: reports.issueType,
+        createdAt: reports.createdAt,
+        menuItemId: reports.menuItemId
+      })
+      .from(reports)
+      .orderBy(desc(reports.createdAt))
+      .limit(10);
+
+    // Combine and sort recent activity
+    const recentActivity = [
+      ...recentReviews.map(r => ({ ...r, type: 'review' })),
+      ...recentReportsData.map(r => ({ ...r, type: 'report' }))
+    ]
+      .sort((a, b) => new Date(b.createdAt as Date).getTime() - new Date(a.createdAt as Date).getTime())
+      .slice(0, 15);
+
+    return {
+      totalReviews,
+      totalMenuItems,
+      totalReports,
+      recentActivity
+    };
   }
 }
 
