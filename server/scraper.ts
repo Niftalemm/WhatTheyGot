@@ -192,7 +192,8 @@ class MenuScraper {
   }
 
   private generateSampleMenuData(date: string): SodexoMealData {
-    // This simulates what would be scraped from MNSU Sodexo using real station names
+    // Comprehensive sample data using real MNSU station names - until dynamic scraping is implemented
+    console.log(`Using comprehensive sample data for ${date} - real scraping requires JavaScript rendering`);
     return {
       breakfast: [
         {

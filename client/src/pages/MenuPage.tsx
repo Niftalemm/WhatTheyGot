@@ -85,10 +85,12 @@ export default function MenuPage() {
     initApp();
   }, []);
 
-  // Fetch all menu items for today (all meal periods)
+  // Fetch all menu items for today (all meal periods) - cached and won't refetch on station changes
   const { data: menuItems = [], isLoading: isLoadingMenu } = useQuery<MenuItem[]>({
     queryKey: ['/api/menu', today],
     queryFn: () => fetch(`/api/menu/${today}`).then(res => res.json()),
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes to prevent unnecessary refetches
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
 
   // Fetch recent reviews for rating calculations
@@ -234,7 +236,7 @@ export default function MenuPage() {
       <div className="space-y-6 px-4 pt-6">
         <HeroSection
           title="MNSU Dining Center"
-          subtitle="Real reviews from students"
+          subtitle={`${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} Menu`}
           backgroundImage={getImageForMealPeriod(getCurrentMeal().toLowerCase())}
           currentMeal={getCurrentMeal()}
           lastUpdated={new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
