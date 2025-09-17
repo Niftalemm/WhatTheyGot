@@ -20,8 +20,6 @@ import dinnerImage from '@assets/generated_images/University_dinner_spread_hero_
 const stationDisplayNames: Record<string, { name: string; description: string }> = {
   'BLISS': { name: 'BLISS', description: 'Sweet treats & desserts' },
   'GROWN': { name: 'GROWN', description: 'Fresh & healthy options' },
-  'MISCELLANEOUS': { name: 'MISCELLANEOUS', description: 'Specialty items' },
-  'SAVORY': { name: 'SAVORY', description: 'Hearty main dishes' },
   'SHOWCASE': { name: 'SHOWCASE', description: 'Featured specialties' },
   'SIMPLE SERVINGS': { name: 'SIMPLE SERVINGS', description: 'Classic comfort food' },
   'SIPS': { name: 'SIPS', description: 'Beverages & drinks' },

@@ -15,7 +15,6 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   const navItems = [
     { id: 'menu', icon: Home, label: 'Menu' },
     { id: 'reviews', icon: MessageSquare, label: 'Reviews' },
-    { id: 'add', icon: Plus, label: 'Add Review' },
     { id: 'profile', icon: User, label: 'Profile' },
   ];
 

@@ -17,11 +17,13 @@ function generateDeviceId(req: any): string {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Helper function to get current meal period
+  // Helper function to get current meal period in America/Chicago timezone
   function getCurrentMealPeriod(): string {
+    // Get current time in America/Chicago timezone (handles CDT/CST automatically)
     const now = new Date();
-    const hour = now.getHours() + now.getMinutes() / 60; // Convert to decimal hours
-    const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const chicagoTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Chicago" }));
+    const hour = chicagoTime.getHours() + chicagoTime.getMinutes() / 60; // Convert to decimal hours
+    const dayOfWeek = chicagoTime.getDay(); // 0 = Sunday, 1 = Monday, etc.
     
     // Check if it's Friday (5) for different dinner hours
     const dinnerEnd = dayOfWeek === 5 ? 20 : 21; // 8 PM Friday, 9 PM other days
