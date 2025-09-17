@@ -17,11 +17,57 @@ function generateDeviceId(req: any): string {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Helper function to get current meal period
+  function getCurrentMealPeriod(): string {
+    const now = new Date();
+    const hour = now.getHours() + now.getMinutes() / 60; // Convert to decimal hours
+    const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    // Check if it's Friday (5) for different dinner hours
+    const dinnerEnd = dayOfWeek === 5 ? 20 : 21; // 8 PM Friday, 9 PM other days
+    
+    if (hour >= 7 && hour < 9.5) {
+      return "breakfast";
+    } else if (hour >= 11 && hour < 14) {
+      return "lunch";
+    } else if (hour >= 14 && hour < 16) {
+      return "liteDinner";
+    } else if (hour >= 17 && hour < dinnerEnd) {
+      return "dinner";
+    } else {
+      // Default to next meal period if outside operating hours
+      if (hour < 7) return "breakfast";
+      if (hour < 11) return "lunch";
+      if (hour < 17) return "dinner";
+      return "breakfast"; // After dinner, show tomorrow's breakfast
+    }
+  }
+
   // Menu Items Routes
   app.get("/api/menu/:date", async (req, res) => {
     try {
       const { date } = req.params;
-      const menuItems = await storage.getMenuItemsByDate(date);
+      const { meal, current } = req.query;
+      
+      let menuItems = await storage.getMenuItemsByDate(date);
+      
+      // Apply meal period filtering if requested
+      if (current === 'true') {
+        const currentMeal = getCurrentMealPeriod();
+        menuItems = menuItems.filter(item => {
+          // Map lite dinner to dinner for frontend display
+          const itemMeal = item.mealPeriod === "liteDinner" ? "dinner" : item.mealPeriod;
+          const targetMeal = currentMeal === "liteDinner" ? "dinner" : currentMeal;
+          return itemMeal === targetMeal;
+        });
+      } else if (meal) {
+        menuItems = menuItems.filter(item => {
+          // Map lite dinner to dinner for frontend display
+          const itemMeal = item.mealPeriod === "liteDinner" ? "dinner" : item.mealPeriod;
+          return itemMeal === meal;
+        });
+      }
+      
       res.json(menuItems);
     } catch (error) {
       console.error("Error fetching menu items:", error);

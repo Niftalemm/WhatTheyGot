@@ -16,18 +16,20 @@ import breakfastImage from '@assets/generated_images/University_breakfast_spread
 import lunchImage from '@assets/generated_images/University_lunch_spread_hero_3f701dd6.png';
 import dinnerImage from '@assets/generated_images/University_dinner_spread_hero_9c67f7bd.png';
 
-// Station mapping for better display
+// Real MNSU Dining Station mapping for better display
 const stationDisplayNames: Record<string, { name: string; description: string }> = {
-  'Grill': { name: 'Grill Station', description: 'Burgers, fries & classics' },
-  'Pizza': { name: 'Pizza Corner', description: 'Fresh made pizzas' },
-  'Salad Bar': { name: 'Salad Bar', description: 'Fresh greens & toppings' },
-  'International': { name: 'Global Kitchen', description: 'World cuisines' },
-  'Pasta': { name: 'Pasta Station', description: 'Italian classics' },
-  'Fresh Market': { name: 'Fresh Market', description: 'Healthy options' },
-  'Bakery': { name: 'Bakery', description: 'Baked goods & treats' },
-  'Dessert': { name: 'Sweet Treats', description: 'Desserts & beverages' },
-  'Vegetables': { name: 'Veggie Station', description: 'Fresh vegetables' },
-  'Deli': { name: 'Deli Counter', description: 'Sandwiches & wraps' }
+  'BLISS': { name: 'BLISS', description: 'Sweet treats & desserts' },
+  'GROWN': { name: 'GROWN', description: 'Fresh & healthy options' },
+  'MISCELLANEOUS': { name: 'MISCELLANEOUS', description: 'Specialty items' },
+  'SAVORY': { name: 'SAVORY', description: 'Hearty main dishes' },
+  'SHOWCASE': { name: 'SHOWCASE', description: 'Featured specialties' },
+  'SIMPLE SERVINGS': { name: 'SIMPLE SERVINGS', description: 'Classic comfort food' },
+  'SIPS': { name: 'SIPS', description: 'Beverages & drinks' },
+  'SIZZLE': { name: 'SIZZLE', description: 'Grilled favorites' },
+  'SLICES': { name: 'SLICES', description: 'Pizza & breadsticks' },
+  'STACKED': { name: 'STACKED', description: 'Sandwiches & wraps' },
+  'TOSSED': { name: 'TOSSED', description: 'Fresh salads' },
+  'TWISTS': { name: 'TWISTS', description: 'Pasta & Italian' }
 };
 
 // Transform menu items for display
@@ -66,7 +68,7 @@ interface CalorieItem {
 
 export default function MenuPage() {
   const { toast } = useToast();
-  const [activeStation, setActiveStation] = useState('Grill');
+  const [activeStation, setActiveStation] = useState('SIZZLE');
   const [reviewModal, setReviewModal] = useState({ isOpen: false, itemName: '', itemId: '' });
   const [reportModal, setReportModal] = useState({ isOpen: false, itemName: '', itemId: '' });
   const [calorieItems, setCalorieItems] = useState<CalorieItem[]>([]);
@@ -85,10 +87,10 @@ export default function MenuPage() {
     initApp();
   }, []);
 
-  // Fetch menu items for today
+  // Fetch menu items for today with current meal filtering
   const { data: menuItems = [], isLoading: isLoadingMenu } = useQuery<MenuItem[]>({
-    queryKey: ['/api/menu', today],
-    queryFn: () => fetch(`/api/menu/${today}`).then(res => res.json()),
+    queryKey: ['/api/menu', today, 'current'],
+    queryFn: () => fetch(`/api/menu/${today}?current=true`).then(res => res.json()),
   });
 
   // Fetch recent reviews for rating calculations
@@ -122,7 +124,7 @@ export default function MenuPage() {
       toast({ title: "Review submitted!", description: "Thank you for your feedback." });
       // Invalidate both reviews and menu queries to update ratings
       queryClient.invalidateQueries({ queryKey: ['/api/reviews/recent'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/menu', today] });
+      queryClient.invalidateQueries({ queryKey: ['/api/menu', today, 'current'] });
       setReviewModal({ isOpen: false, itemName: '', itemId: '' });
     },
     onError: (error: any) => {
