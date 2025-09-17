@@ -66,7 +66,7 @@ interface CalorieItem {
 
 export default function MenuPage() {
   const { toast } = useToast();
-  const [activeStation, setActiveStation] = useState('SIZZLE');
+  const [activeStation, setActiveStation] = useState('All');
   const [reviewModal, setReviewModal] = useState({ isOpen: false, itemName: '', itemId: '' });
   const [reportModal, setReportModal] = useState({ isOpen: false, itemName: '', itemId: '' });
   const [calorieItems, setCalorieItems] = useState<CalorieItem[]>([]);
@@ -85,10 +85,10 @@ export default function MenuPage() {
     initApp();
   }, []);
 
-  // Fetch menu items for today with current meal filtering
+  // Fetch all menu items for today (all meal periods)
   const { data: menuItems = [], isLoading: isLoadingMenu } = useQuery<MenuItem[]>({
-    queryKey: ['/api/menu', today, 'current'],
-    queryFn: () => fetch(`/api/menu/${today}?current=true`).then(res => res.json()),
+    queryKey: ['/api/menu', today],
+    queryFn: () => fetch(`/api/menu/${today}`).then(res => res.json()),
   });
 
   // Fetch recent reviews for rating calculations
@@ -97,20 +97,25 @@ export default function MenuPage() {
     queryFn: () => fetch('/api/reviews/recent').then(res => res.json()),
   });
 
-  // Group menu items by meal period
-  const menuItemsByMeal = menuItems.reduce((acc, item) => {
-    if (!acc[item.mealPeriod]) acc[item.mealPeriod] = [];
-    acc[item.mealPeriod].push(transformMenuItem(item, recentReviews));
-    return acc;
-  }, {} as Record<string, any[]>);
+  // Group menu items by meal period and filter by active station
+  const menuItemsByMeal = menuItems
+    .filter(item => activeStation === 'All' || item.station === activeStation)
+    .reduce((acc, item) => {
+      if (!acc[item.mealPeriod]) acc[item.mealPeriod] = [];
+      acc[item.mealPeriod].push(transformMenuItem(item, recentReviews));
+      return acc;
+    }, {} as Record<string, any[]>);
 
-  // Get unique stations from menu items
-  const stations = Array.from(new Set(menuItems.map(item => item.station)))
-    .map(station => ({
-      id: station,
-      name: stationDisplayNames[station]?.name || station,
-      description: stationDisplayNames[station]?.description || 'Delicious food'
-    }));
+  // Get unique stations from menu items with "All" option
+  const stations = [
+    { id: 'All', name: 'All Stations', description: 'View all dining stations' },
+    ...Array.from(new Set(menuItems.map(item => item.station)))
+      .map(station => ({
+        id: station,
+        name: stationDisplayNames[station]?.name || station,
+        description: stationDisplayNames[station]?.description || 'Delicious food'
+      }))
+  ];
 
   // Mutations for reviews and reports
   const reviewMutation = useMutation({
@@ -122,7 +127,7 @@ export default function MenuPage() {
       toast({ title: "Review submitted!", description: "Thank you for your feedback." });
       // Invalidate both reviews and menu queries to update ratings
       queryClient.invalidateQueries({ queryKey: ['/api/reviews/recent'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/menu', today, 'current'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/menu', today] });
       setReviewModal({ isOpen: false, itemName: '', itemId: '' });
     },
     onError: (error: any) => {

@@ -54,15 +54,27 @@ export default function MealPeriodTabs({ children, defaultValue = "breakfast" }:
       <TabsList className="grid w-full grid-cols-3" data-testid="tabs-meal-periods">
         <TabsTrigger value="breakfast" data-testid="tab-breakfast" className="flex flex-col py-3 h-auto">
           <span className="font-medium">Breakfast</span>
-          <span className="text-xs text-muted-foreground">{getMealPeriodStatus('breakfast')}</span>
+          <span className={`text-xs font-medium ${
+            getMealPeriodStatus('breakfast').includes('OPEN NOW')
+              ? 'text-green-600 dark:text-green-400'
+              : 'text-muted-foreground'
+          }`}>{getMealPeriodStatus('breakfast')}</span>
         </TabsTrigger>
         <TabsTrigger value="lunch" data-testid="tab-lunch" className="flex flex-col py-3 h-auto">
           <span className="font-medium">Lunch</span>
-          <span className="text-xs text-muted-foreground">{getMealPeriodStatus('lunch')}</span>
+          <span className={`text-xs font-medium ${
+            getMealPeriodStatus('lunch').includes('OPEN NOW')
+              ? 'text-green-600 dark:text-green-400'
+              : 'text-muted-foreground'
+          }`}>{getMealPeriodStatus('lunch')}</span>
         </TabsTrigger>
         <TabsTrigger value="dinner" data-testid="tab-dinner" className="flex flex-col py-3 h-auto">
           <span className="font-medium">Dinner</span>
-          <span className="text-xs text-muted-foreground">{getMealPeriodStatus('dinner')}</span>
+          <span className={`text-xs font-medium ${
+            getMealPeriodStatus('dinner').includes('OPEN NOW')
+              ? 'text-green-600 dark:text-green-400'
+              : 'text-muted-foreground'
+          }`}>{getMealPeriodStatus('dinner')}</span>
         </TabsTrigger>
       </TabsList>
       {children}
