@@ -1,5 +1,6 @@
 import { storage } from "./storage";
 import { type InsertMenuItem } from "@shared/schema";
+import { chromium } from 'playwright';
 
 interface SodexoMenuItem {
   name: string;
@@ -91,27 +92,168 @@ class MenuScraper {
   }
 
   async fetchRealSodexoData(date: string): Promise<SodexoMealData> {
+    let browser;
     try {
-      console.log(`Fetching real menu data from MNSU Sodexo for ${date}`);
+      console.log(`Starting Playwright browser automation for MNSU menu data: ${date}`);
       
-      // Fetch the webpage
-      const response = await fetch(this.baseUrl);
-      const html = await response.text();
+      // Launch browser in headless mode
+      browser = await chromium.launch({ headless: true });
+      const page = await browser.newPage();
       
-      // Parse the HTML to extract menu items
-      const menuData = this.parseMenuHTML(html);
+      // Navigate to MNSU Sodexo site
+      await page.goto(this.baseUrl, { waitUntil: 'networkidle' });
+      console.log('Page loaded, looking for date picker...');
       
-      // Store ALL meal periods - filtering will happen at read time
+      // Wait for and click the date picker to select the right date
+      await this.selectDate(page, date);
+      
+      // Extract menu data for all meal periods
+      const menuData = await this.extractAllMealPeriods(page);
+      
+      console.log(`Successfully scraped menu data for ${date}`);
       return menuData;
+      
     } catch (error) {
-      console.error("Failed to fetch real Sodexo data, falling back to sample data:", error);
+      console.error("Playwright scraping failed, falling back to sample data:", error);
       return this.generateSampleMenuData(date);
+    } finally {
+      if (browser) {
+        await browser.close();
+      }
     }
   }
 
+  private async selectDate(page: any, targetDate: string): Promise<void> {
+    try {
+      // Convert date string (2025-09-17) to day number for clicking
+      const dateObj = new Date(targetDate);
+      const dayOfMonth = dateObj.getDate().toString();
+      
+      console.log(`Looking for date ${dayOfMonth} in the calendar picker...`);
+      
+      // Wait for the date picker to be visible
+      await page.waitForSelector('.calendar', { timeout: 10000 });
+      
+      // Look for the specific day button and click it
+      const daySelector = `text="${dayOfMonth}"`;
+      await page.click(daySelector, { timeout: 5000 });
+      
+      console.log(`Successfully selected date ${targetDate}`);
+      
+      // Wait a moment for the page to update with new date
+      await page.waitForTimeout(2000);
+      
+    } catch (error) {
+      console.log(`Could not select specific date ${targetDate}, using current date:`, error);
+      // Continue anyway - site might default to today's date
+    }
+  }
+
+  private async extractAllMealPeriods(page: any): Promise<SodexoMealData> {
+    const menuData: SodexoMealData = {
+      breakfast: [],
+      lunch: [], 
+      dinner: []
+    };
+
+    // Extract each meal period
+    const mealPeriods = ['breakfast', 'lunch', 'dinner'];
+    
+    for (const period of mealPeriods) {
+      try {
+        console.log(`Extracting ${period} menu data...`);
+        menuData[period as keyof SodexoMealData] = await this.extractMealPeriod(page, period.toUpperCase());
+      } catch (error) {
+        console.log(`Failed to extract ${period}:`, error);
+        // Continue with other meal periods
+      }
+    }
+    
+    return menuData;
+  }
+
+  private async extractMealPeriod(page: any, mealPeriodName: string): Promise<SodexoMenuItem[]> {
+    const items: SodexoMenuItem[] = [];
+    
+    try {
+      // Look for the meal period dropdown button (BREAKFAST, LUNCH, DINNER)
+      const dropdownSelector = `text="${mealPeriodName}"`;
+      
+      // Click to expand the meal period if it's collapsed
+      await page.click(dropdownSelector, { timeout: 5000 });
+      await page.waitForTimeout(1000); // Wait for content to load
+      
+      // Extract station sections and their items
+      const stationSections = await page.$$('h3, h4, .station-name'); // Look for station headers
+      
+      for (const stationElement of stationSections) {
+        try {
+          const stationName = await stationElement.textContent();
+          if (!stationName) continue;
+          
+          console.log(`Found station: ${stationName}`);
+          
+          // Find menu items under this station
+          const menuItems = await this.extractItemsFromStation(page, stationElement, stationName);
+          items.push(...menuItems);
+          
+        } catch (error) {
+          console.log('Error extracting station:', error);
+        }
+      }
+      
+    } catch (error) {
+      console.log(`Could not find or expand ${mealPeriodName} section:`, error);
+    }
+    
+    return items;
+  }
+
+  private async extractItemsFromStation(page: any, stationElement: any, stationName: string): Promise<SodexoMenuItem[]> {
+    const items: SodexoMenuItem[] = [];
+    
+    try {
+      // Get the next sibling elements until we hit another station or end of section
+      const parent = await stationElement.evaluateHandle((el: any) => el.parentElement);
+      const allChildren = await parent.$$eval('*', (elements: any) => 
+        elements.map((el: any) => ({
+          tag: el.tagName,
+          text: el.textContent?.trim(),
+          className: el.className
+        }))
+      );
+      
+      // Look for menu items (typically contain calorie numbers)
+      for (const child of allChildren) {
+        const text = child.text || '';
+        const calorieMatch = text.match(/(\d+)\s*cal/i);
+        
+        if (calorieMatch && text.length > 10) { // Has calories and reasonable length
+          const itemName = text.replace(/\s*\d+\s*cal.*$/i, '').trim();
+          const calories = parseInt(calorieMatch[1]);
+          
+          if (itemName && itemName !== stationName) {
+            console.log(`Found item: ${itemName} (${calories} cal) at ${stationName}`);
+            
+            items.push({
+              name: itemName,
+              station: stationName.toUpperCase(),
+              calories: calories,
+              allergens: [] // TODO: Extract allergen icons
+            });
+          }
+        }
+      }
+      
+    } catch (error) {
+      console.log('Error extracting items from station:', error);
+    }
+    
+    return items;
+  }
+
   private parseMenuHTML(html: string): SodexoMealData {
-    // Simple HTML parsing to extract menu items
-    // Look for the menu structure in the HTML
+    // This method is now deprecated - replaced by Playwright automation
     const menuData: SodexoMealData = {
       breakfast: [],
       lunch: [],
