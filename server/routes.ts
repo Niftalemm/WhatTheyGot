@@ -1,10 +1,13 @@
 import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertReviewSchema, insertReportSchema, insertAdminMessageSchema, insertMenuItemSchema } from "@shared/schema";
+import { insertReviewSchema, insertReportSchema, insertAdminMessageSchema, insertMenuItemSchema, reviews, bannedDevices } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { menuScraper } from "./scraper";
 import jwt from "jsonwebtoken";
+import { moderationProvider, createDeviceHash } from "./moderation";
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
 
 // Extend Express Request type to include admin property
 interface AdminRequest extends Request {
@@ -167,12 +170,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/reviews", async (req, res) => {
     try {
       const deviceId = generateDeviceId(req);
-      const reviewData = { ...req.body, deviceId };
+      const deviceIdHash = createDeviceHash(deviceId);
+      
+      // Check if device is banned
+      const isBanned = await storage.isBannedDevice(deviceIdHash);
+      if (isBanned) {
+        return res.status(403).json({ 
+          error: "Your device has been temporarily restricted from posting reviews. Please contact support if you believe this is an error." 
+        });
+      }
+
+      // Use deviceIdHash instead of raw deviceId for privacy
+      const reviewData = { ...req.body, deviceId: deviceIdHash };
       
       // Validate the request body
       const validated = insertReviewSchema.parse(reviewData);
       
-      const review = await storage.createReview(validated);
+      // Run content moderation on the review text
+      let moderationResult = null;
+      if (validated.text && validated.text.trim()) {
+        moderationResult = await moderationProvider.checkText(validated.text, 'review');
+        console.log(`Moderation result for review: ${moderationResult.action} - ${moderationResult.reason}`);
+      }
+
+      // Determine moderation status based on AI result
+      let moderationStatus: 'approved' | 'pending' | 'rejected' = 'approved';
+      if (moderationResult) {
+        switch (moderationResult.action) {
+          case 'approved':
+            moderationStatus = 'approved';
+            break;
+          case 'shadow':
+            moderationStatus = 'pending'; // Shadow-banned reviews go to pending queue
+            break;
+          case 'rejected':
+            moderationStatus = 'rejected';
+            
+            // For rejected content, we still create the review for audit purposes but don't return it to user
+            const rejectedReviewToCreate = {
+              ...validated,
+              deviceId: deviceIdHash,
+              moderationStatus: 'rejected',
+              moderationScores: moderationResult.scores,
+              flaggedReason: moderationResult.reason,
+            };
+
+            const rejectedReview = await storage.createReview(rejectedReviewToCreate);
+            
+            // Check if device is already banned to prevent duplicate ban crash
+            const existingBan = await storage.getBannedDevice(deviceIdHash);
+            if (!existingBan) {
+              // For rejected content, ban the device temporarily only if not already banned
+              await storage.banDevice({
+                deviceIdHash,
+                reason: `Auto-ban: ${moderationResult.reason}`,
+                expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hour ban
+              });
+            }
+            
+            // Log the moderation event with proper review ID for audit trail
+            await storage.logModerationEvent({
+              contentType: 'review',
+              contentId: rejectedReview.id, // Use proper review ID for audit trail
+              deviceIdHash,
+              scores: moderationResult.scores,
+              action: 'rejected',
+              reason: moderationResult.reason,
+            });
+
+            return res.status(400).json({ 
+              error: "Your review contains inappropriate content and cannot be posted. Your account has been temporarily restricted." 
+            });
+        }
+      }
+
+      // Create the review with moderation data
+      const reviewToCreate = {
+        ...validated,
+        deviceId: deviceIdHash, // Ensure we're using hashed device ID for privacy
+        moderationStatus,
+        moderationScores: moderationResult ? moderationResult.scores : null,
+        flaggedReason: moderationResult?.action === 'shadow' ? moderationResult.reason : null,
+      };
+
+      const review = await storage.createReview(reviewToCreate);
+      
+      // Log moderation event for approved/pending reviews
+      if (moderationResult) {
+        await storage.logModerationEvent({
+          contentType: 'review',
+          contentId: review.id,
+          deviceIdHash,
+          scores: moderationResult.scores,
+          action: moderationResult.action,
+          reason: moderationResult.reason,
+        });
+      }
+
+      // For pending reviews, inform user their review is under review
+      if (moderationStatus === 'pending') {
+        return res.status(201).json({
+          ...review,
+          message: "Your review has been submitted and is under review. It will appear once approved."
+        });
+      }
+
       res.status(201).json(review);
     } catch (error: any) {
       console.error("Error creating review:", error);
@@ -190,7 +292,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/reports", async (req, res) => {
     try {
       const deviceId = generateDeviceId(req);
-      const reportData = { ...req.body, deviceId };
+      const deviceIdHash = createDeviceHash(deviceId);
+      const reportData = { ...req.body, deviceId: deviceIdHash };
       
       // Validate the request body
       const validated = insertReportSchema.parse(reportData);
@@ -466,6 +569,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting review:", error);
       res.status(500).json({ error: "Failed to delete review" });
+    }
+  });
+
+  // Content moderation admin routes
+  app.get("/api/admin/moderation/pending", requireAdmin, async (req, res) => {
+    try {
+      const pendingReviews = await storage.getPendingReviews();
+      res.json(pendingReviews);
+    } catch (error) {
+      console.error("Error fetching pending reviews:", error);
+      res.status(500).json({ error: "Failed to fetch pending reviews" });
+    }
+  });
+
+  app.post("/api/admin/moderation/approve/:reviewId", requireAdmin, async (req, res) => {
+    try {
+      const { reviewId } = req.params;
+      
+      // Update review status to approved
+      await db.update(reviews)
+        .set({ 
+          moderationStatus: 'approved',
+          flaggedReason: null 
+        })
+        .where(eq(reviews.id, reviewId));
+
+      // Log moderation event
+      await storage.logModerationEvent({
+        contentType: 'review',
+        contentId: reviewId,
+        action: 'approve',
+        reason: 'Manually approved by admin',
+        adminId: 'admin'
+      });
+
+      res.json({ 
+        success: true,
+        message: "Review approved successfully" 
+      });
+    } catch (error) {
+      console.error("Error approving review:", error);
+      res.status(500).json({ error: "Failed to approve review" });
+    }
+  });
+
+  app.post("/api/admin/moderation/reject/:reviewId", requireAdmin, async (req, res) => {
+    try {
+      const { reviewId } = req.params;
+      const { reason, banDevice } = req.body;
+      
+      // Update review status to rejected
+      await db.update(reviews)
+        .set({ 
+          moderationStatus: 'rejected',
+          flaggedReason: reason || 'Rejected by admin'
+        })
+        .where(eq(reviews.id, reviewId));
+
+      // Get review to find device hash
+      const [review] = await db.select().from(reviews).where(eq(reviews.id, reviewId));
+      if (review && banDevice) {
+        const deviceIdHash = createDeviceHash(review.deviceId);
+        await storage.banDevice({
+          deviceIdHash,
+          reason: reason || 'Rejected content by admin',
+          strikes: 1,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 day ban
+        });
+      }
+
+      // Log moderation event
+      await storage.logModerationEvent({
+        contentType: 'review',
+        contentId: reviewId,
+        action: 'reject',
+        reason: reason || 'Manually rejected by admin',
+        adminId: 'admin'
+      });
+
+      res.json({ 
+        success: true,
+        message: "Review rejected successfully" 
+      });
+    } catch (error) {
+      console.error("Error rejecting review:", error);
+      res.status(500).json({ error: "Failed to reject review" });
+    }
+  });
+
+  app.get("/api/admin/moderation/banned", requireAdmin, async (req, res) => {
+    try {
+      const bannedDevicesList = await db.select().from(bannedDevices).orderBy(desc(bannedDevices.createdAt));
+      res.json(bannedDevicesList);
+    } catch (error) {
+      console.error("Error fetching banned devices:", error);
+      res.status(500).json({ error: "Failed to fetch banned devices" });
+    }
+  });
+
+  app.delete("/api/admin/moderation/unban/:deviceIdHash", requireAdmin, async (req, res) => {
+    try {
+      const { deviceIdHash } = req.params;
+      await storage.unbanDevice(deviceIdHash);
+
+      // Log moderation event
+      await storage.logModerationEvent({
+        contentType: 'device',
+        contentId: deviceIdHash,
+        deviceIdHash,
+        action: 'unban',
+        reason: 'Unbanned by admin',
+        adminId: 'admin'
+      });
+
+      res.json({ 
+        success: true,
+        message: "Device unbanned successfully" 
+      });
+    } catch (error) {
+      console.error("Error unbanning device:", error);
+      res.status(500).json({ error: "Failed to unban device" });
     }
   });
 

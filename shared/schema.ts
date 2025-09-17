@@ -27,6 +27,9 @@ export const reviews = pgTable("reviews", {
   photoUrl: text("photo_url"),
   deviceId: text("device_id").notNull(), // For basic spam prevention
   isFlagged: boolean("is_flagged").default(false),
+  moderationStatus: text("moderation_status").default("approved"), // approved, shadow, rejected, pending
+  moderationScores: json("moderation_scores").$type<Record<string, number>>(), // AI toxicity scores
+  flaggedReason: text("flagged_reason"), // Reason for flagging/rejection
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -63,6 +66,29 @@ export const adminMessages = pgTable("admin_messages", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Banned devices for content moderation
+export const bannedDevices = pgTable("banned_devices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  deviceIdHash: text("device_id_hash").notNull().unique(), // Hashed device identifier
+  reason: text("reason").notNull(), // Reason for ban (hate speech, spam, etc.)
+  strikes: integer("strikes").default(1), // Number of violations
+  expiresAt: timestamp("expires_at"), // When ban expires (null = permanent)
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Moderation events for audit trail
+export const moderationEvents = pgTable("moderation_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contentType: text("content_type").notNull(), // review, message, etc.
+  contentId: varchar("content_id").notNull(), // ID of the content being moderated
+  deviceIdHash: text("device_id_hash"), // Hashed device identifier
+  action: text("action").notNull(), // auto_reject, auto_shadow, approve, reject, ban, unban
+  scores: json("scores").$type<Record<string, number>>(), // AI moderation scores
+  reason: text("reason"), // Human readable reason
+  adminId: text("admin_id"), // Admin who took action (if manual)
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Define relations
 export const menuItemsRelations = relations(menuItems, ({ many }) => ({
   reviews: many(reviews),
@@ -93,6 +119,9 @@ export const insertReviewSchema = createInsertSchema(reviews).omit({
   id: true,
   createdAt: true,
   isFlagged: true,
+  moderationStatus: true,
+  moderationScores: true,
+  flaggedReason: true,
 }).extend({
   rating: z.number().min(1).max(5),
   text: z.string().max(500).optional(),
@@ -115,6 +144,16 @@ export const insertAdminMessageSchema = createInsertSchema(adminMessages).omit({
   updatedAt: true,
 });
 
+export const insertBannedDeviceSchema = createInsertSchema(bannedDevices).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertModerationEventSchema = createInsertSchema(moderationEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type MenuItem = typeof menuItems.$inferSelect;
 export type InsertMenuItem = z.infer<typeof insertMenuItemSchema>;
@@ -130,3 +169,9 @@ export type InsertScrapeRun = z.infer<typeof insertScrapeRunSchema>;
 
 export type AdminMessage = typeof adminMessages.$inferSelect;
 export type InsertAdminMessage = z.infer<typeof insertAdminMessageSchema>;
+
+export type BannedDevice = typeof bannedDevices.$inferSelect;
+export type InsertBannedDevice = z.infer<typeof insertBannedDeviceSchema>;
+
+export type ModerationEvent = typeof moderationEvents.$inferSelect;
+export type InsertModerationEvent = z.infer<typeof insertModerationEventSchema>;

@@ -9,14 +9,20 @@ import {
   type InsertScrapeRun,
   type AdminMessage,
   type InsertAdminMessage,
+  type BannedDevice,
+  type InsertBannedDevice,
+  type ModerationEvent,
+  type InsertModerationEvent,
   menuItems,
   reviews,
   reports,
   scrapeRuns,
-  adminMessages
+  adminMessages,
+  bannedDevices,
+  moderationEvents
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte } from "drizzle-orm";
+import { eq, desc, and, gte, or, isNull, sql } from "drizzle-orm";
 
 export interface IStorage {
   // Menu Items
@@ -49,6 +55,14 @@ export interface IStorage {
   getAllAdminMessages(): Promise<AdminMessage[]>;
   updateAdminMessage(id: string, updates: Partial<AdminMessage>): Promise<void>;
   deleteAdminMessage(id: string): Promise<void>;
+  
+  // Content Moderation
+  isBannedDevice(deviceIdHash: string): Promise<boolean>;
+  getBannedDevice(deviceIdHash: string): Promise<BannedDevice | undefined>;
+  banDevice(ban: InsertBannedDevice): Promise<BannedDevice>;
+  unbanDevice(deviceIdHash: string): Promise<void>;
+  logModerationEvent(event: InsertModerationEvent): Promise<ModerationEvent>;
+  getPendingReviews(): Promise<(Review & { menuItem: MenuItem })[]>;
   
   // Admin Analytics
   getAppStats(): Promise<{
@@ -85,7 +99,13 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(reviews)
-      .where(eq(reviews.menuItemId, menuItemId))
+      .where(
+        and(
+          eq(reviews.menuItemId, menuItemId),
+          eq(reviews.isFlagged, false),
+          eq(reviews.moderationStatus, 'approved') // Only return approved reviews
+        )
+      )
       .orderBy(desc(reviews.createdAt));
   }
 
@@ -100,12 +120,20 @@ export class DatabaseStorage implements IStorage {
         photoUrl: reviews.photoUrl,
         deviceId: reviews.deviceId,
         isFlagged: reviews.isFlagged,
+        moderationStatus: reviews.moderationStatus,
+        moderationScores: reviews.moderationScores,
+        flaggedReason: reviews.flaggedReason,
         createdAt: reviews.createdAt,
         menuItem: menuItems,
       })
       .from(reviews)
       .innerJoin(menuItems, eq(reviews.menuItemId, menuItems.id))
-      .where(eq(reviews.isFlagged, false))
+      .where(
+        and(
+          eq(reviews.isFlagged, false),
+          eq(reviews.moderationStatus, 'approved') // Only show approved reviews
+        )
+      )
       .orderBy(desc(reviews.createdAt))
       .limit(limit);
       
@@ -141,6 +169,9 @@ export class DatabaseStorage implements IStorage {
         photoUrl: reviews.photoUrl,
         deviceId: reviews.deviceId,
         isFlagged: reviews.isFlagged,
+        moderationStatus: reviews.moderationStatus,
+        moderationScores: reviews.moderationScores,
+        flaggedReason: reviews.flaggedReason,
         createdAt: reviews.createdAt,
         menuItem: menuItems,
       })
@@ -148,6 +179,100 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(menuItems, eq(reviews.menuItemId, menuItems.id))
       .orderBy(desc(reviews.createdAt))
       .limit(limit);
+      
+    return results as (Review & { menuItem: MenuItem })[];
+  }
+
+  // Content Moderation Methods
+  async isBannedDevice(deviceIdHash: string): Promise<boolean> {
+    const [banned] = await db
+      .select()
+      .from(bannedDevices)
+      .where(
+        and(
+          eq(bannedDevices.deviceIdHash, deviceIdHash),
+          // Check if ban hasn't expired OR if it's a permanent ban (NULL expiresAt)
+          or(
+            isNull(bannedDevices.expiresAt), // Permanent ban
+            gte(bannedDevices.expiresAt, new Date()) // Temporary ban not yet expired
+          )
+        )
+      );
+    return !!banned;
+  }
+
+  async getBannedDevice(deviceIdHash: string): Promise<BannedDevice | undefined> {
+    const [banned] = await db
+      .select()
+      .from(bannedDevices)
+      .where(eq(bannedDevices.deviceIdHash, deviceIdHash));
+    return banned;
+  }
+
+  async banDevice(ban: InsertBannedDevice): Promise<BannedDevice> {
+    // Use PostgreSQL's upsert capability to handle race conditions and strikes increment
+    const [result] = await db
+      .insert(bannedDevices)
+      .values(ban)
+      .onConflictDoUpdate({
+        target: bannedDevices.deviceIdHash,
+        set: {
+          strikes: sql`${bannedDevices.strikes} + 1`, // Increment strikes on repeat offense
+          reason: ban.reason, // Update with latest reason
+          expiresAt: ban.expiresAt, // Update expiry date
+          createdAt: new Date(), // Update timestamp
+        }
+      })
+      .returning();
+    
+    return result;
+  }
+
+  async unbanDevice(deviceIdHash: string): Promise<void> {
+    await db
+      .delete(bannedDevices)
+      .where(eq(bannedDevices.deviceIdHash, deviceIdHash));
+  }
+
+  async logModerationEvent(event: InsertModerationEvent): Promise<ModerationEvent> {
+    const [logged] = await db.insert(moderationEvents).values(event).returning();
+    return logged;
+  }
+
+  async getPendingReviews(): Promise<(Review & { menuItem: MenuItem })[]> {
+    const results = await db
+      .select({
+        id: reviews.id,
+        menuItemId: reviews.menuItemId,
+        rating: reviews.rating,
+        emoji: reviews.emoji,
+        text: reviews.text,
+        photoUrl: reviews.photoUrl,
+        deviceId: reviews.deviceId,
+        isFlagged: reviews.isFlagged,
+        moderationStatus: reviews.moderationStatus,
+        moderationScores: reviews.moderationScores,
+        flaggedReason: reviews.flaggedReason,
+        createdAt: reviews.createdAt,
+        menuItem: {
+          id: menuItems.id,
+          name: menuItems.itemName, // Alias itemName as name for Admin UI compatibility
+          description: menuItems.station, // Use station as description for Admin UI
+          date: menuItems.date,
+          mealPeriod: menuItems.mealPeriod,
+          station: menuItems.station,
+          itemName: menuItems.itemName,
+          calories: menuItems.calories,
+          allergens: menuItems.allergens,
+          sourceUrl: menuItems.sourceUrl,
+          imageUrl: menuItems.imageUrl,
+          createdAt: menuItems.createdAt,
+        },
+      })
+      .from(reviews)
+      .innerJoin(menuItems, eq(reviews.menuItemId, menuItems.id))
+      .where(eq(reviews.moderationStatus, 'pending'))
+      .orderBy(desc(reviews.createdAt));
       
     return results as (Review & { menuItem: MenuItem })[];
   }

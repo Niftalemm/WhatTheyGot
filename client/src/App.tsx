@@ -13,6 +13,7 @@ import AdminDashboard from "@/pages/AdminDashboard";
 import AdminMenu from "@/pages/AdminMenu";
 import AdminMessages from "@/pages/AdminMessages";
 import AdminReviews from "@/pages/AdminReviews";
+import AdminModeration from "@/pages/AdminModeration";
 import NotFound from "@/pages/not-found";
 import { useState } from "react";
 import { useLocation } from "wouter";
@@ -59,6 +60,7 @@ function Router() {
         <Route path="/admin/menu" component={AdminMenu} />
         <Route path="/admin/messages" component={AdminMessages} />
         <Route path="/admin/reviews" component={AdminReviews} />
+        <Route path="/admin/moderation" component={AdminModeration} />
         <Route component={NotFound} />
       </Switch>
     );

@@ -155,6 +155,15 @@ export default function AdminDashboard() {
           <Button 
             variant="default"
             className="h-auto p-4 flex-col"
+            onClick={() => setLocation('/admin/moderation')}
+            data-testid="button-content-moderation"
+          >
+            <AlertTriangle className="w-6 h-6 mb-2" />
+            Content Moderation
+          </Button>
+          <Button 
+            variant="default"
+            className="h-auto p-4 flex-col"
             onClick={() => window.open('/', '_blank')}
             data-testid="button-view-app"
           >
