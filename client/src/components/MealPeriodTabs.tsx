@@ -21,13 +21,13 @@ function getMealPeriodStatus(mealPeriod: string): string {
   switch (mealPeriod) {
     case 'breakfast':
       if (decimalHour >= 7 && decimalHour < 9.5) {
-        return 'OPEN NOW';
+        return 'OPEN NOW • CLOSES 9:30 AM';
       } else {
         return 'OPENS AT 7:00 AM';
       }
     case 'lunch':
       if (decimalHour >= 11 && decimalHour < 14) {
-        return 'OPEN NOW';
+        return 'OPEN NOW • CLOSES 2:00 PM';
       } else if (decimalHour < 11) {
         return 'OPENS AT 11:00 AM';
       } else {
@@ -35,7 +35,8 @@ function getMealPeriodStatus(mealPeriod: string): string {
       }
     case 'dinner':
       if (decimalHour >= 17 && decimalHour < dinnerEnd) {
-        return 'OPEN NOW';
+        const closeTime = dayOfWeek === 5 ? '8:00 PM' : '9:00 PM';
+        return `OPEN NOW • CLOSES ${closeTime}`;
       } else if (decimalHour >= 14 && decimalHour < 17) {
         return 'LITE DINNER 2:00-4:00 PM';
       } else if (decimalHour < 17) {
@@ -52,25 +53,25 @@ export default function MealPeriodTabs({ children, defaultValue = "breakfast" }:
   return (
     <Tabs defaultValue={defaultValue} className="w-full">
       <TabsList className="grid w-full grid-cols-3" data-testid="tabs-meal-periods">
-        <TabsTrigger value="breakfast" data-testid="tab-breakfast" className="flex flex-col py-3 h-auto">
-          <span className="font-medium">Breakfast</span>
-          <span className={`text-xs font-medium ${
+        <TabsTrigger value="breakfast" data-testid="tab-breakfast" className="flex flex-col py-2 px-1 h-auto min-h-[60px] text-center">
+          <span className="font-medium text-sm">Breakfast</span>
+          <span className={`text-[10px] sm:text-xs font-medium leading-tight mt-1 ${
             getMealPeriodStatus('breakfast').includes('OPEN NOW')
               ? 'text-green-600 dark:text-green-400'
               : 'text-muted-foreground'
           }`}>{getMealPeriodStatus('breakfast')}</span>
         </TabsTrigger>
-        <TabsTrigger value="lunch" data-testid="tab-lunch" className="flex flex-col py-3 h-auto">
-          <span className="font-medium">Lunch</span>
-          <span className={`text-xs font-medium ${
+        <TabsTrigger value="lunch" data-testid="tab-lunch" className="flex flex-col py-2 px-1 h-auto min-h-[60px] text-center">
+          <span className="font-medium text-sm">Lunch</span>
+          <span className={`text-[10px] sm:text-xs font-medium leading-tight mt-1 ${
             getMealPeriodStatus('lunch').includes('OPEN NOW')
               ? 'text-green-600 dark:text-green-400'
               : 'text-muted-foreground'
           }`}>{getMealPeriodStatus('lunch')}</span>
         </TabsTrigger>
-        <TabsTrigger value="dinner" data-testid="tab-dinner" className="flex flex-col py-3 h-auto">
-          <span className="font-medium">Dinner</span>
-          <span className={`text-xs font-medium ${
+        <TabsTrigger value="dinner" data-testid="tab-dinner" className="flex flex-col py-2 px-1 h-auto min-h-[60px] text-center">
+          <span className="font-medium text-sm">Dinner</span>
+          <span className={`text-[10px] sm:text-xs font-medium leading-tight mt-1 ${
             getMealPeriodStatus('dinner').includes('OPEN NOW')
               ? 'text-green-600 dark:text-green-400'
               : 'text-muted-foreground'
