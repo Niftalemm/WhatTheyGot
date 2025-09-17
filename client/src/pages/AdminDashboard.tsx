@@ -146,11 +146,11 @@ export default function AdminDashboard() {
           <Button 
             variant="default"
             className="h-auto p-4 flex-col"
-            onClick={() => setLocation('/admin/reports')}
-            data-testid="button-view-reports"
+            onClick={() => setLocation('/admin/reviews')}
+            data-testid="button-manage-reviews"
           >
-            <AlertTriangle className="w-6 h-6 mb-2" />
-            View Reports
+            <Star className="w-6 h-6 mb-2" />
+            Manage Reviews
           </Button>
           <Button 
             variant="default"

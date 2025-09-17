@@ -1,10 +1,15 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertReviewSchema, insertReportSchema, insertAdminMessageSchema, insertMenuItemSchema } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { menuScraper } from "./scraper";
 import jwt from "jsonwebtoken";
+
+// Extend Express Request type to include admin property
+interface AdminRequest extends Request {
+  admin?: any;
+}
 
 function generateDeviceId(req: any): string {
   // Simple device fingerprint based on headers and IP
@@ -17,12 +22,20 @@ function generateDeviceId(req: any): string {
   return fingerprint.substring(0, 32);
 }
 
-// JWT secret key for signing tokens
-const JWT_SECRET = process.env.JWT_SECRET || "fallback_jwt_secret_change_in_production";
+// JWT secret key for signing tokens - MUST be set in Replit secrets
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  console.error("CRITICAL: JWT_SECRET environment variable is required. Please set it in Replit Secrets.");
+  process.exit(1);
+}
+
+// Type assertion for TypeScript since we verified it exists
+const verifiedJwtSecret: string = JWT_SECRET;
 const JWT_EXPIRES_IN = "24h"; // Token expires in 24 hours
 
 // Secure admin authentication middleware using JWT
-function requireAdmin(req: any, res: any, next: any) {
+function requireAdmin(req: AdminRequest, res: any, next: any) {
   const authHeader = req.headers.authorization;
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -32,7 +45,7 @@ function requireAdmin(req: any, res: any, next: any) {
   const token = authHeader.split(' ')[1];
   
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const decoded = jwt.verify(token, verifiedJwtSecret) as any;
     
     // Verify this is an admin token
     if (decoded.type !== 'admin') {
@@ -275,7 +288,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/login", async (req, res) => {
     try {
       const { password } = req.body;
-      const adminPassword = process.env.ADMIN_PASSWORD || "mnsu2024admin";
+      const adminPassword = process.env.ADMIN_PASSWORD;
+      
+      if (!adminPassword) {
+        return res.status(500).json({ error: "Admin password not configured. Please set ADMIN_PASSWORD in Replit Secrets." });
+      }
       
       if (password !== adminPassword) {
         return res.status(401).json({ error: "Invalid admin password" });
@@ -288,7 +305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           iat: Math.floor(Date.now() / 1000),
           // Add additional claims if needed
         },
-        JWT_SECRET,
+        verifiedJwtSecret,
         { expiresIn: JWT_EXPIRES_IN }
       );
       
@@ -304,7 +321,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin token validation endpoint
-  app.get("/api/admin/validate", requireAdmin, (req, res) => {
+  app.get("/api/admin/validate", requireAdmin, (req: AdminRequest, res) => {
     res.json({ 
       valid: true, 
       admin: req.admin,
@@ -423,6 +440,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error resolving report:", error);
       res.status(500).json({ error: "Failed to resolve report" });
+    }
+  });
+
+  // Admin review management
+  app.get("/api/admin/reviews", requireAdmin, async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
+      const reviews = await storage.getAllReviews(limit);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching all reviews:", error);
+      res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+  });
+
+  app.delete("/api/admin/reviews/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteReview(id);
+      res.json({ 
+        success: true,
+        message: "Review deleted successfully" 
+      });
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      res.status(500).json({ error: "Failed to delete review" });
     }
   });
 

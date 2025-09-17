@@ -28,8 +28,10 @@ export interface IStorage {
   // Reviews  
   getReviewsForMenuItem(menuItemId: string): Promise<Review[]>;
   getRecentReviews(limit?: number): Promise<(Review & { menuItem: MenuItem })[]>;
+  getAllReviews(limit?: number): Promise<(Review & { menuItem: MenuItem })[]>;
   createReview(review: InsertReview): Promise<Review>;
   flagReview(id: string): Promise<void>;
+  deleteReview(id: string): Promise<void>;
   
   // Reports
   createReport(report: InsertReport): Promise<Report>;
@@ -120,6 +122,34 @@ export class DatabaseStorage implements IStorage {
       .update(reviews)
       .set({ isFlagged: true })
       .where(eq(reviews.id, id));
+  }
+
+  async deleteReview(id: string): Promise<void> {
+    await db
+      .delete(reviews)
+      .where(eq(reviews.id, id));
+  }
+
+  async getAllReviews(limit = 100): Promise<(Review & { menuItem: MenuItem })[]> {
+    const results = await db
+      .select({
+        id: reviews.id,
+        menuItemId: reviews.menuItemId,
+        rating: reviews.rating,
+        emoji: reviews.emoji,
+        text: reviews.text,
+        photoUrl: reviews.photoUrl,
+        deviceId: reviews.deviceId,
+        isFlagged: reviews.isFlagged,
+        createdAt: reviews.createdAt,
+        menuItem: menuItems,
+      })
+      .from(reviews)
+      .innerJoin(menuItems, eq(reviews.menuItemId, menuItems.id))
+      .orderBy(desc(reviews.createdAt))
+      .limit(limit);
+      
+    return results as (Review & { menuItem: MenuItem })[];
   }
 
   // Reports
