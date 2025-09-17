@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import AppBanner from "@/components/AppBanner";
 import HeroSection from "@/components/HeroSection";
 import MealPeriodTabs from "@/components/MealPeriodTabs";
@@ -8,93 +10,52 @@ import ReviewModal from "@/components/ReviewModal";
 import ReportModal from "@/components/ReportModal";
 import CalorieCounter from "@/components/CalorieCounter";
 import { TabsContent } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
+import type { MenuItem, Review } from "@shared/schema";
 import breakfastImage from '@assets/generated_images/University_breakfast_spread_hero_5b900fb1.png';
 import lunchImage from '@assets/generated_images/University_lunch_spread_hero_3f701dd6.png';
 import dinnerImage from '@assets/generated_images/University_dinner_spread_hero_9c67f7bd.png';
 
-//todo: remove mock functionality
-const mockStations = [
-  { id: 'grill', name: 'Grill Station', description: 'Burgers, fries & classics' },
-  { id: 'pizza', name: 'Pizza Corner', description: 'Fresh made pizzas' },
-  { id: 'salad', name: 'Salad Bar', description: 'Fresh greens & toppings' },
-  { id: 'international', name: 'Global Kitchen', description: 'World cuisines' },
-  { id: 'dessert', name: 'Sweet Treats', description: 'Desserts & beverages' },
-];
+// Station mapping for better display
+const stationDisplayNames: Record<string, { name: string; description: string }> = {
+  'Grill': { name: 'Grill Station', description: 'Burgers, fries & classics' },
+  'Pizza': { name: 'Pizza Corner', description: 'Fresh made pizzas' },
+  'Salad Bar': { name: 'Salad Bar', description: 'Fresh greens & toppings' },
+  'International': { name: 'Global Kitchen', description: 'World cuisines' },
+  'Pasta': { name: 'Pasta Station', description: 'Italian classics' },
+  'Fresh Market': { name: 'Fresh Market', description: 'Healthy options' },
+  'Bakery': { name: 'Bakery', description: 'Baked goods & treats' },
+  'Dessert': { name: 'Sweet Treats', description: 'Desserts & beverages' },
+  'Vegetables': { name: 'Veggie Station', description: 'Fresh vegetables' },
+  'Deli': { name: 'Deli Counter', description: 'Sandwiches & wraps' }
+};
 
-//todo: remove mock functionality
-const mockMenuItems = {
-  breakfast: [
-    {
-      id: 'pancakes-1',
-      name: 'Fluffy Buttermilk Pancakes',
-      station: 'Grill Station',
-      calories: 420,
-      allergens: ['Gluten', 'Dairy', 'Eggs'],
-      rating: 4.2,
-      reviewCount: 18,
-      image: breakfastImage,
-    },
-    {
-      id: 'eggs-1',
-      name: 'Scrambled Eggs',
-      station: 'Grill Station', 
-      calories: 180,
-      allergens: ['Eggs'],
-      rating: 3.8,
-      reviewCount: 12,
-    },
-    {
-      id: 'oatmeal-1',
-      name: 'Steel Cut Oatmeal',
-      station: 'International',
-      calories: 220,
-      allergens: [],
-      rating: 4.0,
-      reviewCount: 8,
-    },
-  ],
-  lunch: [
-    {
-      id: 'burger-1',
-      name: 'Classic Cheeseburger',
-      station: 'Grill Station',
-      calories: 650,
-      allergens: ['Gluten', 'Dairy'],
-      rating: 4.5,
-      reviewCount: 32,
-      image: lunchImage,
-    },
-    {
-      id: 'salad-1',
-      name: 'Garden Fresh Salad',
-      station: 'Salad Bar',
-      calories: 180,
-      allergens: [],
-      rating: 4.1,
-      reviewCount: 15,
-    },
-  ],
-  dinner: [
-    {
-      id: 'pasta-1',
-      name: 'Chicken Alfredo Pasta',
-      station: 'International',
-      calories: 480,
-      allergens: ['Gluten', 'Dairy'],
-      rating: 4.3,
-      reviewCount: 24,
-      image: dinnerImage,
-    },
-    {
-      id: 'pizza-1',
-      name: 'Pepperoni Pizza',
-      station: 'Pizza Corner',
-      calories: 320,
-      allergens: ['Gluten', 'Dairy'],
-      rating: 4.6,
-      reviewCount: 45,
-    },
-  ],
+// Transform menu items for display
+const transformMenuItem = (item: MenuItem, reviews: Review[] = []) => {
+  const itemReviews = reviews.filter(r => r.menuItemId === item.id);
+  const avgRating = itemReviews.length > 0 
+    ? itemReviews.reduce((sum, r) => sum + r.rating, 0) / itemReviews.length 
+    : 0;
+
+  return {
+    id: item.id,
+    name: item.itemName,
+    station: stationDisplayNames[item.station]?.name || item.station,
+    calories: item.calories || 0,
+    allergens: item.allergens || [],
+    rating: Math.round(avgRating * 10) / 10,
+    reviewCount: itemReviews.length,
+    image: getImageForMealPeriod(item.mealPeriod),
+  };
+};
+
+const getImageForMealPeriod = (mealPeriod: string) => {
+  switch (mealPeriod) {
+    case 'breakfast': return breakfastImage;
+    case 'lunch': return lunchImage;
+    case 'dinner': return dinnerImage;
+    default: return breakfastImage;
+  }
 };
 
 interface CalorieItem {
@@ -104,35 +65,121 @@ interface CalorieItem {
 }
 
 export default function MenuPage() {
-  const [activeStation, setActiveStation] = useState('grill');
+  const { toast } = useToast();
+  const [activeStation, setActiveStation] = useState('Grill');
   const [reviewModal, setReviewModal] = useState({ isOpen: false, itemName: '', itemId: '' });
   const [reportModal, setReportModal] = useState({ isOpen: false, itemName: '', itemId: '' });
   const [calorieItems, setCalorieItems] = useState<CalorieItem[]>([]);
 
+  const today = new Date().toISOString().split('T')[0];
+
+  // Initialize app with sample data
+  useEffect(() => {
+    const initApp = async () => {
+      try {
+        await fetch('/api/init');
+      } catch (error) {
+        console.log('Init check failed, continuing anyway');
+      }
+    };
+    initApp();
+  }, []);
+
+  // Fetch menu items for today
+  const { data: menuItems = [], isLoading: isLoadingMenu } = useQuery<MenuItem[]>({
+    queryKey: ['/api/menu', today],
+    queryFn: () => fetch(`/api/menu/${today}`).then(res => res.json()),
+  });
+
+  // Fetch recent reviews for rating calculations
+  const { data: recentReviews = [] } = useQuery<(Review & { menuItem: MenuItem })[]>({
+    queryKey: ['/api/reviews/recent'],
+    queryFn: () => fetch('/api/reviews/recent').then(res => res.json()),
+  });
+
+  // Group menu items by meal period
+  const menuItemsByMeal = menuItems.reduce((acc, item) => {
+    if (!acc[item.mealPeriod]) acc[item.mealPeriod] = [];
+    acc[item.mealPeriod].push(transformMenuItem(item, recentReviews));
+    return acc;
+  }, {} as Record<string, any[]>);
+
+  // Get unique stations from menu items
+  const stations = Array.from(new Set(menuItems.map(item => item.station)))
+    .map(station => ({
+      id: station,
+      name: stationDisplayNames[station]?.name || station,
+      description: stationDisplayNames[station]?.description || 'Delicious food'
+    }));
+
+  // Mutations for reviews and reports
+  const reviewMutation = useMutation({
+    mutationFn: async (reviewData: any) => {
+      const response = await apiRequest('POST', '/api/reviews', reviewData);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Review submitted!", description: "Thank you for your feedback." });
+      // Invalidate both reviews and menu queries to update ratings
+      queryClient.invalidateQueries({ queryKey: ['/api/reviews/recent'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/menu', today] });
+      setReviewModal({ isOpen: false, itemName: '', itemId: '' });
+    },
+    onError: (error: any) => {
+      console.error('Review submission error:', error);
+      toast({ title: "Error", description: "Failed to submit review. Please try again.", variant: "destructive" });
+    },
+  });
+
+  const reportMutation = useMutation({
+    mutationFn: async (reportData: any) => {
+      const response = await apiRequest('POST', '/api/reports', reportData);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Report submitted!", description: "Thank you for reporting this issue." });
+      setReportModal({ isOpen: false, itemName: '', itemId: '' });
+    },
+    onError: (error: any) => {
+      console.error('Report submission error:', error);
+      toast({ title: "Error", description: "Failed to submit report. Please try again.", variant: "destructive" });
+    },
+  });
+
   const handleRate = (itemId: string, rating: number) => {
-    console.log(`Rated item ${itemId} with ${rating} stars`);
+    // For quick ratings, submit as review with just rating
+    reviewMutation.mutate({
+      menuItemId: itemId,
+      rating,
+    });
   };
 
   const handleReview = (itemId: string) => {
-    const item = Object.values(mockMenuItems).flat().find(i => i.id === itemId);
+    const item = Object.values(menuItemsByMeal).flat().find(i => i.id === itemId);
     if (item) {
       setReviewModal({ isOpen: true, itemName: item.name, itemId });
     }
   };
 
   const handleReport = (itemId: string) => {
-    const item = Object.values(mockMenuItems).flat().find(i => i.id === itemId);
+    const item = Object.values(menuItemsByMeal).flat().find(i => i.id === itemId);
     if (item) {
       setReportModal({ isOpen: true, itemName: item.name, itemId });
     }
   };
 
   const handleReviewSubmit = (review: any) => {
-    console.log('Review submitted:', review);
+    reviewMutation.mutate({
+      menuItemId: reviewModal.itemId,
+      ...review,
+    });
   };
 
   const handleReportSubmit = (report: any) => {
-    console.log('Report submitted:', report);
+    reportMutation.mutate({
+      menuItemId: reportModal.itemId,
+      ...report,
+    });
   };
 
   const handleAddToCalorieCounter = (item: CalorieItem) => {
@@ -149,13 +196,24 @@ export default function MenuPage() {
     setCalorieItems([]);
   };
 
-  const getHeroImage = (mealPeriod: string) => {
-    switch (mealPeriod) {
-      case 'breakfast': return breakfastImage;
-      case 'lunch': return lunchImage;
-      case 'dinner': return dinnerImage;
-      default: return breakfastImage;
-    }
+  if (isLoadingMenu) {
+    return (
+      <div className="pb-20">
+        <AppBanner />
+        <div className="px-4 pt-6">
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">Loading today's menu...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const getCurrentMeal = () => {
+    const hour = new Date().getHours();
+    if (hour < 11) return 'Breakfast';
+    if (hour < 16) return 'Lunch';
+    return 'Dinner';
   };
 
   return (
@@ -172,36 +230,50 @@ export default function MenuPage() {
         <HeroSection
           title="MNSU Dining Center"
           subtitle="Real reviews from students"
-          backgroundImage={breakfastImage}
-          currentMeal="Breakfast"
-          lastUpdated="8:30 AM"
+          backgroundImage={getImageForMealPeriod(getCurrentMeal().toLowerCase())}
+          currentMeal={getCurrentMeal()}
+          lastUpdated={new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         />
 
-        <StationCarousel
-          stations={mockStations}
-          onStationSelect={setActiveStation}
-          activeStation={activeStation}
-        />
+        {stations.length > 0 && (
+          <StationCarousel
+            stations={stations}
+            onStationSelect={setActiveStation}
+            activeStation={activeStation}
+          />
+        )}
 
         <MealPeriodTabs>
-          {Object.entries(mockMenuItems).map(([mealPeriod, items]) => (
+          {Object.entries(menuItemsByMeal).map(([mealPeriod, items]) => (
             <TabsContent key={mealPeriod} value={mealPeriod} className="mt-6">
               <div className="space-y-4">
-                {items.map((item) => (
-                  <MenuCard
-                    key={item.id}
-                    {...item}
-                    isInCalorieCounter={calorieItems.some(ci => ci.id === item.id)}
-                    onRate={handleRate}
-                    onReview={handleReview}
-                    onReport={handleReport}
-                    onAddToCalorieCounter={item.calories ? handleAddToCalorieCounter : undefined}
-                  />
-                ))}
+                {items.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">No menu items available for {mealPeriod}</p>
+                  </div>
+                ) : (
+                  items.map((item) => (
+                    <MenuCard
+                      key={item.id}
+                      {...item}
+                      isInCalorieCounter={calorieItems.some(ci => ci.id === item.id)}
+                      onRate={handleRate}
+                      onReview={handleReview}
+                      onReport={handleReport}
+                      onAddToCalorieCounter={item.calories ? handleAddToCalorieCounter : undefined}
+                    />
+                  ))
+                )}
               </div>
             </TabsContent>
           ))}
         </MealPeriodTabs>
+
+        {Object.keys(menuItemsByMeal).length === 0 && (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">No menu available for today. Check back later!</p>
+          </div>
+        )}
       </div>
 
       <ReviewModal

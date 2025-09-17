@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertReviewSchema, insertReportSchema } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { menuScraper } from "./scraper";
 
 function generateDeviceId(req: any): string {
   // Simple device fingerprint based on headers and IP
@@ -120,6 +121,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Scraper Routes
+  app.post("/api/scrape/run", async (req, res) => {
+    try {
+      console.log("Manual scrape triggered");
+      await menuScraper.runDailyScrape();
+      res.json({ 
+        success: true, 
+        message: "Scrape completed successfully" 
+      });
+    } catch (error) {
+      console.error("Manual scrape failed:", error);
+      res.status(500).json({ 
+        error: "Scrape failed", 
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.get("/api/scrape/runs", async (req, res) => {
+    try {
+      const runs = await storage.getRecentScrapeRuns(10);
+      res.json(runs);
+    } catch (error) {
+      console.error("Error fetching scrape runs:", error);
+      res.status(500).json({ error: "Failed to fetch scrape runs" });
+    }
+  });
+
   // Health check endpoint
   app.get("/api/health", (req, res) => {
     res.json({ 
@@ -127,6 +156,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       timestamp: new Date().toISOString(),
       database: "connected"
     });
+  });
+
+  // Initialize with sample data on first run
+  app.get("/api/init", async (req, res) => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const existingItems = await storage.getMenuItemsByDate(today);
+      
+      if (existingItems.length === 0) {
+        console.log("No menu items found, running initial scrape...");
+        await menuScraper.runDailyScrape();
+        res.json({ 
+          message: "Initialized with sample menu data",
+          date: today
+        });
+      } else {
+        res.json({ 
+          message: "Menu data already exists",
+          date: today,
+          itemCount: existingItems.length
+        });
+      }
+    } catch (error) {
+      console.error("Initialization failed:", error);
+      res.status(500).json({ error: "Failed to initialize" });
+    }
   });
 
   const httpServer = createServer(app);
