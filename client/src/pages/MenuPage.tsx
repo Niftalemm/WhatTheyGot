@@ -16,6 +16,8 @@ import type { MenuItem, Review } from "@shared/schema";
 import breakfastImage from '@assets/generated_images/University_breakfast_spread_hero_5b900fb1.png';
 import lunchImage from '@assets/generated_images/University_lunch_spread_hero_3f701dd6.png';
 import dinnerImage from '@assets/generated_images/University_dinner_spread_hero_9c67f7bd.png';
+import { AuthButton } from "@/components/AuthButton";
+import { ProtectedContent } from "@/components/ProtectedContent";
 
 // Real MNSU Dining Station mapping for better display
 const stationDisplayNames: Record<string, { name: string; description: string }> = {
@@ -249,6 +251,11 @@ export default function MenuPage() {
           lastUpdated={new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         />
 
+        {/* Sign In button beneath the banner */}
+        <div className="flex justify-center mt-6 mb-4">
+          <AuthButton />
+        </div>
+
         {stations.length > 0 && (
           <StationCarousel
             stations={stations}
@@ -267,15 +274,16 @@ export default function MenuPage() {
                   </div>
                 ) : (
                   items.map((item) => (
-                    <MenuCard
-                      key={item.id}
-                      {...item}
-                      isInCalorieCounter={calorieItems.some(ci => ci.id === item.id)}
-                      onRate={handleRate}
-                      onReview={handleReview}
-                      onReport={handleReport}
-                      onAddToCalorieCounter={item.calories ? handleAddToCalorieCounter : undefined}
-                    />
+                    <ProtectedContent key={item.id} blurLevel="md">
+                      <MenuCard
+                        {...item}
+                        isInCalorieCounter={calorieItems.some(ci => ci.id === item.id)}
+                        onRate={handleRate}
+                        onReview={handleReview}
+                        onReport={handleReport}
+                        onAddToCalorieCounter={item.calories ? handleAddToCalorieCounter : undefined}
+                      />
+                    </ProtectedContent>
                   ))
                 )}
               </div>
@@ -290,19 +298,21 @@ export default function MenuPage() {
         )}
       </div>
 
-      <ReviewModal
-        isOpen={reviewModal.isOpen}
-        onClose={() => setReviewModal({ ...reviewModal, isOpen: false })}
-        itemName={reviewModal.itemName}
-        onSubmit={handleReviewSubmit}
-      />
+      <ProtectedContent>
+        <ReviewModal
+          isOpen={reviewModal.isOpen}
+          onClose={() => setReviewModal({ ...reviewModal, isOpen: false })}
+          itemName={reviewModal.itemName}
+          onSubmit={handleReviewSubmit}
+        />
 
-      <ReportModal
-        isOpen={reportModal.isOpen}
-        onClose={() => setReportModal({ ...reportModal, isOpen: false })}
-        itemName={reportModal.itemName}
-        onSubmit={handleReportSubmit}
-      />
+        <ReportModal
+          isOpen={reportModal.isOpen}
+          onClose={() => setReportModal({ ...reportModal, isOpen: false })}
+          itemName={reportModal.itemName}
+          onSubmit={handleReportSubmit}
+        />
+      </ProtectedContent>
     </div>
   );
 }

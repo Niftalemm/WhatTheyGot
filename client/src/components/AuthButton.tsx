@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -8,9 +9,11 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { LogOut, User } from "lucide-react";
+import { LoginModal } from "./LoginModal";
 
 export function AuthButton() {
   const { user, isLoading, isAuthenticated } = useAuth();
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   if (isLoading) {
     return <div className="w-8 h-8 bg-muted rounded-full animate-pulse" />;
@@ -18,42 +21,19 @@ export function AuthButton() {
 
   if (!isAuthenticated) {
     return (
-      <Button 
-        variant="default" 
-        onClick={() => {
-          const email = prompt("Enter your email to sign in (or create account):");
-          if (email) {
-            const displayName = prompt("Enter your display name (for new accounts):");
-            if (displayName) {
-              // Try signup first, fallback to signin
-              fetch('/api/auth/signup', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, displayName })
-              }).then(async res => {
-                if (res.ok) {
-                  window.location.reload();
-                } else {
-                  // If signup fails, try signin
-                  const signinRes = await fetch('/api/auth/signin', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email })
-                  });
-                  if (signinRes.ok) {
-                    window.location.reload();
-                  } else {
-                    alert('Failed to sign in');
-                  }
-                }
-              });
-            }
-          }
-        }}
-        data-testid="button-login"
-      >
-        Sign In
-      </Button>
+      <>
+        <Button 
+          variant="default" 
+          onClick={() => setShowLoginModal(true)}
+          data-testid="button-login"
+        >
+          Sign In
+        </Button>
+        <LoginModal 
+          isOpen={showLoginModal} 
+          onClose={() => setShowLoginModal(false)} 
+        />
+      </>
     );
   }
 
