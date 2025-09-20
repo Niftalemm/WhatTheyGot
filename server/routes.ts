@@ -153,6 +153,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up simple authentication
   const { setupSimpleAuth, requireAuth } = await import('./simpleAuth');
   setupSimpleAuth(app);
+  
+  // Set up email service
+  const { sendVerificationCode } = await import('./sendgrid');
 
   // Simple auth endpoints
   app.get('/api/auth/user', async (req: any, res) => {
@@ -170,36 +173,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Sign up with email and display name
+  // Sign up - send verification code
   app.post('/api/auth/signup', async (req, res) => {
     try {
-      const validatedData = insertUserSchema.parse(req.body);
+      const { email, displayName } = req.body;
+      
+      if (!email || !displayName) {
+        return res.status(400).json({ error: "Email and display name are required" });
+      }
       
       // Check if user already exists
-      const existingUser = await storage.getUserByEmail(validatedData.email);
+      const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
         return res.status(409).json({ error: "An account with this email already exists" });
       }
       
-      // Create new user
-      const user = await storage.createUser(validatedData);
+      // Generate 6-digit verification code
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
       
-      // Set session
-      (req.session as any).userId = user.id;
+      // Store verification code (use existing emailCodes table)
+      await storage.createEmailCode({
+        email: email.toLowerCase(),
+        code,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+      });
       
-      res.status(201).json({
-        user,
-        message: "Account created successfully",
+      // Send verification email
+      const emailSent = await sendVerificationCode(email, code);
+      
+      // Store user data temporarily in session for after verification
+      (req.session as any).pendingUser = { email, displayName };
+      
+      res.json({
+        message: "Verification code sent to your email",
+        needsVerification: true,
+        emailSent,
       });
     } catch (error: any) {
       console.error("User signup error:", error);
-      if (error.name === "ZodError") {
-        return res.status(400).json({ 
-          error: "Invalid signup data", 
-          details: error.errors 
-        });
+      res.status(500).json({ error: "Failed to send verification code" });
+    }
+  });
+  
+  // Verify code and complete signup
+  app.post('/api/auth/verify', async (req, res) => {
+    try {
+      const { email, code } = req.body;
+      
+      if (!email || !code) {
+        return res.status(400).json({ error: "Email and code are required" });
       }
-      res.status(500).json({ error: "Failed to create account" });
+      
+      // Verify the code
+      const isValid = await storage.verifyEmailCode(email, code);
+      if (!isValid) {
+        return res.status(400).json({ error: "Invalid or expired verification code" });
+      }
+      
+      // Get pending user data from session
+      const pendingUser = (req.session as any)?.pendingUser;
+      if (!pendingUser || pendingUser.email !== email) {
+        return res.status(400).json({ error: "No pending signup found for this email" });
+      }
+      
+      // Create the user
+      const user = await storage.createUser({
+        email: email.toLowerCase(),
+        displayName: pendingUser.displayName,
+      });
+      
+      // Set session
+      (req.session as any).userId = user.id;
+      delete (req.session as any).pendingUser;
+      
+      res.status(201).json({
+        user,
+        message: "Account created and verified successfully",
+      });
+    } catch (error: any) {
+      console.error("Verification error:", error);
+      res.status(500).json({ error: "Failed to verify account" });
     }
   });
 

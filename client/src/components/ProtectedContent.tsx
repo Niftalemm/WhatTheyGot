@@ -43,12 +43,6 @@ export function ProtectedContent({
                       Please sign in to view and post reviews
                     </p>
                   </div>
-                  <Button 
-                    onClick={() => setShowLoginModal(true)}
-                    data-testid="button-signin-overlay"
-                  >
-                    Sign In
-                  </Button>
                 </>
               )}
             </div>

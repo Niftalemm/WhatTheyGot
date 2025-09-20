@@ -15,6 +15,8 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [needsVerification, setNeedsVerification] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -33,13 +35,24 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
       });
 
       if (response.ok) {
-        // Invalidate auth query to refresh user state
-        await queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
-        toast({
-          title: "Success!",
-          description: isSignUp ? "Account created successfully" : "Signed in successfully",
-        });
-        onClose();
+        const result = await response.json();
+        
+        if (result.needsVerification) {
+          setNeedsVerification(true);
+          toast({
+            title: "Verification code sent",
+            description: "Please check your email for the verification code",
+          });
+        } else {
+          // Invalidate auth query to refresh user state
+          await queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+          toast({
+            title: "Success!",
+            description: isSignUp ? "Account created successfully" : "Signed in successfully",
+          });
+          onClose();
+          resetForm();
+        }
       } else {
         const error = await response.json();
         if (response.status === 409 && !isSignUp) {
@@ -75,8 +88,54 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
     }
   };
 
+  const handleVerification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: verificationCode }),
+      });
+
+      if (response.ok) {
+        await queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+        toast({
+          title: "Success!",
+          description: "Account verified and created successfully",
+        });
+        onClose();
+        resetForm();
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Error",
+          description: error.error || "Verification failed",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Network error. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setEmail("");
+    setDisplayName("");
+    setVerificationCode("");
+    setNeedsVerification(false);
+    setIsSignUp(false);
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) { onClose(); resetForm(); } }}>
       <DialogContent className="sm:max-w-md" data-testid="dialog-login">
         <DialogHeader>
           <DialogTitle>
