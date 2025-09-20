@@ -13,18 +13,37 @@ import {
   type InsertBannedDevice,
   type ModerationEvent,
   type InsertModerationEvent,
+  type User,
+  type InsertUser,
+  type ReviewReport,
+  type InsertReviewReport,
   menuItems,
   reviews,
   reports,
   scrapeRuns,
   adminMessages,
   bannedDevices,
-  moderationEvents
+  moderationEvents,
+  users,
+  reviewReports
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, or, isNull, sql } from "drizzle-orm";
 
 export interface IStorage {
+  // Users
+  getUserByEmail(email: string): Promise<User | undefined>;
+  getUserById(id: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+  updateUser(id: string, updates: Partial<User>): Promise<void>;
+  getUserStats(userId: string): Promise<{
+    reviewsPosted: number;
+    averageRating: number;
+    photosShared: number;
+    reportsSubmitted: number;
+  }>;
+  getUserRecentActivity(userId: string, limit?: number): Promise<any[]>;
+  
   // Menu Items
   getMenuItemsByDate(date: string): Promise<MenuItem[]>;
   getMenuItemById(id: string): Promise<MenuItem | undefined>;
@@ -38,6 +57,12 @@ export interface IStorage {
   createReview(review: InsertReview): Promise<Review>;
   flagReview(id: string): Promise<void>;
   deleteReview(id: string): Promise<void>;
+  hideReview(id: string): Promise<void>;
+  restoreReview(id: string): Promise<void>;
+  
+  // Review Reports
+  createReviewReport(report: InsertReviewReport): Promise<ReviewReport>;
+  getReviewReports(status?: string): Promise<(ReviewReport & { review: Review & { menuItem: MenuItem } })[]>;
   
   // Reports
   createReport(report: InsertReport): Promise<Report>;
@@ -74,6 +99,74 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // Users
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email.toLowerCase()));
+    return user;
+  }
+
+  async getUserById(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    // Ensure email is stored in lowercase for consistency
+    const userData = { ...user, email: user.email.toLowerCase() };
+    const [created] = await db.insert(users).values(userData).returning();
+    return created;
+  }
+
+  async updateUser(id: string, updates: Partial<User>): Promise<void> {
+    await db.update(users).set(updates).where(eq(users.id, id));
+  }
+
+  async getUserStats(userId: string): Promise<{
+    reviewsPosted: number;
+    averageRating: number;
+    photosShared: number;
+    reportsSubmitted: number;
+  }> {
+    const userReviews = await db.select().from(reviews).where(eq(reviews.userId, userId));
+    const averageRating = userReviews.length > 0 
+      ? userReviews.reduce((sum, r) => sum + r.rating, 0) / userReviews.length 
+      : 0;
+    const photosShared = userReviews.filter(r => r.photoUrl).length;
+    
+    const userReports = await db.select().from(reviewReports).where(eq(reviewReports.reportedByUserId, userId));
+    
+    return {
+      reviewsPosted: userReviews.length,
+      averageRating: Math.round(averageRating * 10) / 10,
+      photosShared,
+      reportsSubmitted: userReports.length,
+    };
+  }
+
+  async getUserRecentActivity(userId: string, limit = 10): Promise<any[]> {
+    const userReviews = await db
+      .select({
+        id: reviews.id,
+        type: sql`'review'`.as('type'),
+        itemName: menuItems.itemName,
+        rating: reviews.rating,
+        createdAt: reviews.createdAt,
+      })
+      .from(reviews)
+      .innerJoin(menuItems, eq(reviews.menuItemId, menuItems.id))
+      .where(eq(reviews.userId, userId))
+      .orderBy(desc(reviews.createdAt))
+      .limit(limit);
+
+    return userReviews.map(r => ({
+      id: r.id,
+      type: r.type,
+      itemName: r.itemName,
+      rating: r.rating,
+      timeAgo: new Date(Date.now() - new Date(r.createdAt).getTime()).toISOString(),
+    }));
+  }
+
   // Menu Items
   async getMenuItemsByDate(date: string): Promise<MenuItem[]> {
     return await db.select().from(menuItems).where(eq(menuItems.date, date));
@@ -102,6 +195,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(reviews.menuItemId, menuItemId),
+          eq(reviews.isHidden, false), // Only show non-hidden reviews
           eq(reviews.isFlagged, false),
           eq(reviews.moderationStatus, 'approved') // Only return approved reviews
         )
@@ -114,11 +208,13 @@ export class DatabaseStorage implements IStorage {
       .select({
         id: reviews.id,
         menuItemId: reviews.menuItemId,
+        userId: reviews.userId,
         rating: reviews.rating,
         emoji: reviews.emoji,
         text: reviews.text,
         photoUrl: reviews.photoUrl,
         deviceId: reviews.deviceId,
+        isHidden: reviews.isHidden,
         isFlagged: reviews.isFlagged,
         moderationStatus: reviews.moderationStatus,
         moderationScores: reviews.moderationScores,
@@ -130,6 +226,7 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(menuItems, eq(reviews.menuItemId, menuItems.id))
       .where(
         and(
+          eq(reviews.isHidden, false), // Only show non-hidden reviews
           eq(reviews.isFlagged, false),
           eq(reviews.moderationStatus, 'approved') // Only show approved reviews
         )
@@ -158,16 +255,71 @@ export class DatabaseStorage implements IStorage {
       .where(eq(reviews.id, id));
   }
 
+  async hideReview(id: string): Promise<void> {
+    await db
+      .update(reviews)
+      .set({ isHidden: true })
+      .where(eq(reviews.id, id));
+  }
+
+  async restoreReview(id: string): Promise<void> {
+    await db
+      .update(reviews)
+      .set({ isHidden: false })
+      .where(eq(reviews.id, id));
+  }
+
+  // Review Reports
+  async createReviewReport(report: InsertReviewReport): Promise<ReviewReport> {
+    const [created] = await db.insert(reviewReports).values(report).returning();
+    
+    // Automatically hide the reported review
+    await this.hideReview(report.reviewId);
+    
+    return created;
+  }
+
+  async getReviewReports(status?: string): Promise<(ReviewReport & { review: Review & { menuItem: MenuItem } })[]> {
+    const baseQuery = db
+      .select()
+      .from(reviewReports)
+      .innerJoin(reviews, eq(reviewReports.reviewId, reviews.id))
+      .innerJoin(menuItems, eq(reviews.menuItemId, menuItems.id));
+
+    const rawResults = status
+      ? await baseQuery.where(eq(reviewReports.status, status)).orderBy(desc(reviewReports.createdAt))
+      : await baseQuery.orderBy(desc(reviewReports.createdAt));
+
+    // Transform the results to match the expected return type
+    const results = rawResults.map((row: any) => ({
+      id: row.review_reports.id,
+      reviewId: row.review_reports.reviewId,
+      reportedByUserId: row.review_reports.reportedByUserId,
+      reportedByDeviceId: row.review_reports.reportedByDeviceId,
+      reason: row.review_reports.reason,
+      status: row.review_reports.status,
+      createdAt: row.review_reports.createdAt,
+      review: {
+        ...row.reviews,
+        menuItem: row.menu_items,
+      },
+    }));
+
+    return results as (ReviewReport & { review: Review & { menuItem: MenuItem } })[];
+  }
+
   async getAllReviews(limit = 100): Promise<(Review & { menuItem: MenuItem })[]> {
     const results = await db
       .select({
         id: reviews.id,
         menuItemId: reviews.menuItemId,
+        userId: reviews.userId,
         rating: reviews.rating,
         emoji: reviews.emoji,
         text: reviews.text,
         photoUrl: reviews.photoUrl,
         deviceId: reviews.deviceId,
+        isHidden: reviews.isHidden,
         isFlagged: reviews.isFlagged,
         moderationStatus: reviews.moderationStatus,
         moderationScores: reviews.moderationScores,
@@ -244,11 +396,13 @@ export class DatabaseStorage implements IStorage {
       .select({
         id: reviews.id,
         menuItemId: reviews.menuItemId,
+        userId: reviews.userId,
         rating: reviews.rating,
         emoji: reviews.emoji,
         text: reviews.text,
         photoUrl: reviews.photoUrl,
         deviceId: reviews.deviceId,
+        isHidden: reviews.isHidden,
         isFlagged: reviews.isFlagged,
         moderationStatus: reviews.moderationStatus,
         moderationScores: reviews.moderationScores,
@@ -266,6 +420,7 @@ export class DatabaseStorage implements IStorage {
           allergens: menuItems.allergens,
           sourceUrl: menuItems.sourceUrl,
           imageUrl: menuItems.imageUrl,
+          isDeleted: menuItems.isDeleted,
           createdAt: menuItems.createdAt,
         },
       })
