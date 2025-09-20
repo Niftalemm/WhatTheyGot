@@ -42,13 +42,6 @@ function MainApp() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
-        <div className="flex items-center justify-center p-4">
-          <h1 className="text-lg font-semibold">Campus Menu</h1>
-        </div>
-      </header>
-      
       <main className="min-h-screen pb-20">
         {renderPage()}
       </main>
