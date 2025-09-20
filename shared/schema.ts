@@ -3,6 +3,17 @@ import { pgTable, text, varchar, integer, real, timestamp, boolean, json } from 
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Users for authentication and accountability
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: text("email").notNull().unique(),
+  displayName: text("display_name").notNull(),
+  bio: text("bio"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  emailUniqueIndex: sql`CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique_lower ON users (LOWER(email))`,
+}));
+
 // Menu Items from Sodexo scraping
 export const menuItems = pgTable("menu_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -14,6 +25,7 @@ export const menuItems = pgTable("menu_items", {
   allergens: json("allergens").$type<string[]>().default([]),
   sourceUrl: text("source_url"),
   imageUrl: text("image_url"),
+  isDeleted: boolean("is_deleted").default(false), // Soft delete for admin management
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -21,17 +33,45 @@ export const menuItems = pgTable("menu_items", {
 export const reviews = pgTable("reviews", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   menuItemId: varchar("menu_item_id").notNull().references(() => menuItems.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }), // User who wrote the review, set null on user delete to preserve review history
   rating: integer("rating").notNull(), // 1-5
   emoji: text("emoji"), // Single emoji reaction
   text: text("text"),
   photoUrl: text("photo_url"),
-  deviceId: text("device_id").notNull(), // For basic spam prevention
+  deviceId: text("device_id"), // Keep for backward compatibility, but now optional
+  isHidden: boolean("is_hidden").default(false), // Hide when reported (before admin review)
   isFlagged: boolean("is_flagged").default(false),
   moderationStatus: text("moderation_status").default("approved"), // approved, shadow, rejected, pending
   moderationScores: json("moderation_scores").$type<Record<string, number>>(), // AI toxicity scores
   flaggedReason: text("flagged_reason"), // Reason for flagging/rejection
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  // Ensure accountability: either user_id or device_id must be present
+  identityCheck: sql`CHECK (user_id IS NOT NULL OR device_id IS NOT NULL)`,
+  // Ensure rating is in valid range
+  ratingCheck: sql`CHECK (rating BETWEEN 1 AND 5)`,
+  // Add indexes for performance
+  menuItemIndex: sql`CREATE INDEX IF NOT EXISTS reviews_menu_item_id_idx ON reviews (menu_item_id)`,
+  userIndex: sql`CREATE INDEX IF NOT EXISTS reviews_user_id_idx ON reviews (user_id)`,
+  hiddenIndex: sql`CREATE INDEX IF NOT EXISTS reviews_is_hidden_idx ON reviews (is_hidden)`,
+}));
+
+// Review reports for user-reported content
+export const reviewReports = pgTable("review_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  reviewId: varchar("review_id").notNull().references(() => reviews.id, { onDelete: "cascade" }),
+  reportedByUserId: varchar("reported_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  reportedByDeviceId: text("reported_by_device_id"), // Fallback if user not logged in
+  reason: text("reason").notNull(), // User's reason for reporting
+  status: text("status").default("pending"), // pending, reviewed, dismissed
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  // Ensure accountability: either reported_by_user_id or reported_by_device_id must be present
+  reporterIdentityCheck: sql`CHECK (reported_by_user_id IS NOT NULL OR reported_by_device_id IS NOT NULL)`,
+  // Add indexes for performance
+  reviewIndex: sql`CREATE INDEX IF NOT EXISTS review_reports_review_id_idx ON review_reports (review_id)`,
+  statusIndex: sql`CREATE INDEX IF NOT EXISTS review_reports_status_idx ON review_reports (status)`,
+}));
 
 // Reports for incorrect menu info
 export const reports = pgTable("reports", {
@@ -90,15 +130,36 @@ export const moderationEvents = pgTable("moderation_events", {
 });
 
 // Define relations
+export const usersRelations = relations(users, ({ many }) => ({
+  reviews: many(reviews),
+  reviewReports: many(reviewReports),
+}));
+
 export const menuItemsRelations = relations(menuItems, ({ many }) => ({
   reviews: many(reviews),
   reports: many(reports),
 }));
 
-export const reviewsRelations = relations(reviews, ({ one }) => ({
+export const reviewsRelations = relations(reviews, ({ one, many }) => ({
   menuItem: one(menuItems, {
     fields: [reviews.menuItemId],
     references: [menuItems.id],
+  }),
+  user: one(users, {
+    fields: [reviews.userId],
+    references: [users.id],
+  }),
+  reviewReports: many(reviewReports),
+}));
+
+export const reviewReportsRelations = relations(reviewReports, ({ one }) => ({
+  review: one(reviews, {
+    fields: [reviewReports.reviewId],
+    references: [reviews.id],
+  }),
+  reportedByUser: one(users, {
+    fields: [reviewReports.reportedByUserId],
+    references: [users.id],
   }),
 }));
 
@@ -110,6 +171,15 @@ export const reportsRelations = relations(reports, ({ one }) => ({
 }));
 
 // Insert schemas for validation
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  email: z.string().email(),
+  displayName: z.string().min(1).max(50),
+  bio: z.string().max(200).optional(),
+});
+
 export const insertMenuItemSchema = createInsertSchema(menuItems).omit({
   id: true,
   createdAt: true,
@@ -118,6 +188,7 @@ export const insertMenuItemSchema = createInsertSchema(menuItems).omit({
 export const insertReviewSchema = createInsertSchema(reviews).omit({
   id: true,
   createdAt: true,
+  isHidden: true,
   isFlagged: true,
   moderationStatus: true,
   moderationScores: true,
@@ -125,6 +196,14 @@ export const insertReviewSchema = createInsertSchema(reviews).omit({
 }).extend({
   rating: z.number().min(1).max(5),
   text: z.string().max(500).optional(),
+});
+
+export const insertReviewReportSchema = createInsertSchema(reviewReports).omit({
+  id: true,
+  createdAt: true,
+  status: true,
+}).extend({
+  reason: z.string().min(1).max(200),
 });
 
 export const insertReportSchema = createInsertSchema(reports).omit({
@@ -155,11 +234,17 @@ export const insertModerationEventSchema = createInsertSchema(moderationEvents).
 });
 
 // Types
+export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+
 export type MenuItem = typeof menuItems.$inferSelect;
 export type InsertMenuItem = z.infer<typeof insertMenuItemSchema>;
 
 export type Review = typeof reviews.$inferSelect;
 export type InsertReview = z.infer<typeof insertReviewSchema>;
+
+export type ReviewReport = typeof reviewReports.$inferSelect;
+export type InsertReviewReport = z.infer<typeof insertReviewReportSchema>;
 
 export type Report = typeof reports.$inferSelect;
 export type InsertReport = z.infer<typeof insertReportSchema>;
