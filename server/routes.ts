@@ -1,13 +1,45 @@
-import type { Express, Request } from "express";
+import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertReviewSchema, insertReportSchema, insertAdminMessageSchema, insertMenuItemSchema, insertUserSchema, insertReviewReportSchema, reviews, bannedDevices, users } from "@shared/schema";
+import { insertReviewSchema, insertReportSchema, insertAdminMessageSchema, insertMenuItemSchema, insertUserSchema, insertReviewReportSchema, reviews, bannedDevices, users, User, getUserDisplayName } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { menuScraper } from "./scraper";
 import jwt from "jsonwebtoken";
 import { moderationProvider, createDeviceHash } from "./moderation";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
+
+// Helper function to compute displayName from firstName and lastName
+function computeDisplayName(firstName: string | null, lastName: string | null): string {
+  const first = firstName?.trim() || "";
+  const last = lastName?.trim() || "";
+  
+  if (first && last) {
+    return `${first} ${last}`;
+  } else if (first) {
+    return first;
+  } else if (last) {
+    return last;
+  } else {
+    return "Anonymous User";
+  }
+}
+
+// Helper function to parse displayName into firstName and lastName
+function parseDisplayName(displayName: string): { firstName: string | null, lastName: string | null } {
+  if (!displayName || displayName.trim() === "" || displayName === "Anonymous User") {
+    return { firstName: null, lastName: null };
+  }
+  
+  const parts = displayName.trim().split(/\s+/);
+  if (parts.length === 1) {
+    return { firstName: parts[0], lastName: null };
+  } else if (parts.length >= 2) {
+    return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+  } else {
+    return { firstName: null, lastName: null };
+  }
+}
 
 // Extend Express Request types
 interface AdminRequest extends Request {
@@ -19,7 +51,7 @@ interface UserRequest extends Request {
     id: string;
     email: string;
     displayName: string;
-  };
+  } | User;
 }
 
 function generateDeviceId(req: any): string {
@@ -33,20 +65,24 @@ function generateDeviceId(req: any): string {
   return fingerprint.substring(0, 32);
 }
 
-// JWT secret key for signing tokens - MUST be set in Replit secrets
+// JWT secret key - required in production for admin auth
 const JWT_SECRET = process.env.JWT_SECRET;
+const isDev = process.env.NODE_ENV === 'development';
 
-if (!JWT_SECRET) {
-  console.error("CRITICAL: JWT_SECRET environment variable is required. Please set it in Replit Secrets.");
+if (!JWT_SECRET && !isDev) {
+  console.error("CRITICAL: JWT_SECRET required in production for admin authentication");
   process.exit(1);
 }
 
-// Type assertion for TypeScript since we verified it exists
-const verifiedJwtSecret: string = JWT_SECRET;
+// Use dev secret only in development
+const jwtSecret = JWT_SECRET || 'dev-jwt-secret-key';
+
+// Type assertion for TypeScript since we verified it exists or defaulted
+const verifiedJwtSecret: string = jwtSecret;
 const JWT_EXPIRES_IN = "24h"; // Token expires in 24 hours
 
 // User authentication middleware using JWT
-function requireUser(req: UserRequest, res: any, next: any) {
+function requireUser(req: UserRequest, res: Response, next: any) {
   const authHeader = req.headers.authorization;
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -63,11 +99,11 @@ function requireUser(req: UserRequest, res: any, next: any) {
       return res.status(401).json({ error: "Invalid user token" });
     }
     
-    // Attach user info to request
+    // Attach user info to request - compute displayName from firstName and lastName
     req.user = {
       id: decoded.userId,
       email: decoded.email,
-      displayName: decoded.displayName,
+      displayName: computeDisplayName(decoded.firstName, decoded.lastName),
     };
     next();
   } catch (error: any) {
@@ -114,6 +150,41 @@ function requireAdmin(req: AdminRequest, res: any, next: any) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Conditionally set up Replit Auth
+  let isAuthenticated: any = null;
+  if (process.env.REPLIT_DOMAINS) {
+    try {
+      const { setupAuth, isAuthenticated: replitAuth } = await import('./replitAuth');
+      await setupAuth(app);
+      isAuthenticated = replitAuth;
+      console.log('Replit Auth enabled');
+    } catch (error) {
+      console.error('Failed to setup Replit Auth:', error);
+    }
+  }
+
+  // Auth endpoint - return current user if authenticated
+  app.get('/api/auth/user', async (req: any, res) => {
+    try {
+      if (isAuthenticated && req.isAuthenticated && req.isAuthenticated()) {
+        const userId = req.user?.claims?.sub;
+        if (userId) {
+          const user = await storage.getUser(userId);
+          if (user) {
+            return res.json({
+              ...user,
+              displayName: getUserDisplayName(user)
+            });
+          }
+        }
+      }
+      res.json(null);
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      res.json(null);
+    }
+  });
+
   // Helper function to get current meal period in America/Chicago timezone
   function getCurrentMealPeriod(): string {
     // Get current time in America/Chicago timezone (handles CDT/CST automatically)
@@ -216,6 +287,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const deviceId = generateDeviceId(req);
       const deviceIdHash = createDeviceHash(deviceId);
       
+      // Get authenticated user if available
+      let userId = null;
+      if (isAuthenticated && req.isAuthenticated && req.isAuthenticated()) {
+        userId = req.user?.claims?.sub;
+      }
+      
       // Check if device is banned
       const isBanned = await storage.isBannedDevice(deviceIdHash);
       if (isBanned) {
@@ -288,10 +365,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Create the review with moderation data
+      // Create the review with moderation data and user association
       const reviewToCreate = {
         ...validated,
-        deviceId: deviceIdHash, // Ensure we're using hashed device ID for privacy
+        userId, // Associate with authenticated user if available
+        deviceId: userId ? null : deviceIdHash, // Only use deviceId if no user
         moderationStatus,
         moderationScores: moderationResult ? moderationResult.scores : null,
         flaggedReason: moderationResult?.action === 'shadow' ? moderationResult.reason : null,
@@ -445,13 +523,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create new user
       const user = await storage.createUser(validatedData);
       
-      // Generate JWT token
+      // Generate JWT token using firstName and lastName
       const token = jwt.sign(
         {
           type: 'user',
           userId: user.id,
           email: user.email,
-          displayName: user.displayName,
+          firstName: user.firstName || null,
+          lastName: user.lastName || null,
           iat: Math.floor(Date.now() / 1000),
         },
         verifiedJwtSecret,
@@ -463,7 +542,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         user: {
           id: user.id,
           email: user.email,
-          displayName: user.displayName,
+          displayName: computeDisplayName(user.firstName, user.lastName),
           bio: user.bio,
           createdAt: user.createdAt,
         },
@@ -491,19 +570,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Email is required" });
       }
       
-      // Find user by email
+      // Find user by email - handle null email
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
       const user = await storage.getUserByEmail(email);
       if (!user) {
         return res.status(401).json({ error: "No account found with this email" });
       }
       
-      // Generate JWT token
+      // Generate JWT token using firstName and lastName
       const token = jwt.sign(
         {
           type: 'user',
           userId: user.id,
           email: user.email,
-          displayName: user.displayName,
+          firstName: user.firstName || null,
+          lastName: user.lastName || null,
           iat: Math.floor(Date.now() / 1000),
         },
         verifiedJwtSecret,
@@ -515,7 +598,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         user: {
           id: user.id,
           email: user.email,
-          displayName: user.displayName,
+          displayName: computeDisplayName(user.firstName, user.lastName),
           bio: user.bio,
           createdAt: user.createdAt,
         },
@@ -529,7 +612,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User profile routes
-  app.get("/api/auth/profile", requireUser, async (req: UserRequest, res) => {
+  app.get("/api/auth/profile", requireUser, async (req: UserRequest, res: Response) => {
     try {
       const user = await storage.getUserById(req.user!.id);
       if (!user) {
@@ -543,7 +626,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         user: {
           id: user.id,
           email: user.email,
-          displayName: user.displayName,
+          displayName: computeDisplayName(user.firstName, user.lastName),
           bio: user.bio,
           createdAt: user.createdAt,
         },
@@ -556,12 +639,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/auth/profile", requireUser, async (req: UserRequest, res) => {
+  app.put("/api/auth/profile", requireUser, async (req: UserRequest, res: Response) => {
     try {
       const { displayName, bio } = req.body;
       
+      // Parse displayName into firstName and lastName if provided
+      let updateData: any = { bio };
+      if (displayName !== undefined) {
+        const { firstName, lastName } = parseDisplayName(displayName);
+        updateData.firstName = firstName;
+        updateData.lastName = lastName;
+      }
+      
       // Update user profile
-      await storage.updateUser(req.user!.id, { displayName, bio });
+      await storage.updateUser(req.user!.id, updateData);
       
       // Fetch updated user
       const updatedUser = await storage.getUserById(req.user!.id);
@@ -570,7 +661,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         user: {
           id: updatedUser!.id,
           email: updatedUser!.email,
-          displayName: updatedUser!.displayName,
+          displayName: computeDisplayName(updatedUser!.firstName, updatedUser!.lastName),
           bio: updatedUser!.bio,
           createdAt: updatedUser!.createdAt,
         },
@@ -657,7 +748,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========== ADMIN ROUTES ==========
   
   // Admin authentication - secure JWT implementation
-  app.post("/api/admin/login", async (req, res) => {
+  app.post("/api/admin/login", async (req: Request, res: Response) => {
     try {
       const { password } = req.body;
       const adminPassword = process.env.ADMIN_PASSWORD;

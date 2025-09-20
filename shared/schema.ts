@@ -1,20 +1,33 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, integer, real, timestamp, boolean, json } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, real, timestamp, boolean, json, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Users for authentication and accountability
+// Session storage table for Replit Auth
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)]
+);
+
+// Users for Replit Auth (with backward compatibility)
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: text("email").notNull().unique(),
-  displayName: text("display_name").notNull(),
-  bio: text("bio"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => ({
-  emailUniqueIndex: sql`CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique_lower ON users (LOWER(email))`,
-}));
+  email: varchar("email").unique(),
+  firstName: varchar("first_name"), // Renamed from displayName for Replit Auth
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
+  // For backward compatibility, we'll add displayName as a computed field
+  bio: text("bio"), // Keep bio field for profile pages
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
 
-// Email verification codes for secure authentication
+// Email verification codes for secure authentication (keeping for backward compatibility)
 export const emailCodes = pgTable("email_codes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: text("email").notNull(),
@@ -183,14 +196,33 @@ export const reportsRelations = relations(reports, ({ one }) => ({
   }),
 }));
 
+// Replit Auth user types
+export type UpsertUser = typeof users.$inferInsert;
+export type User = typeof users.$inferSelect;
+
+// Helper function to compute displayName for backward compatibility
+export function getUserDisplayName(user: User): string {
+  if (user.firstName && user.lastName) {
+    return `${user.firstName} ${user.lastName}`;
+  } else if (user.firstName) {
+    return user.firstName;
+  } else if (user.lastName) {
+    return user.lastName;
+  } else {
+    return user.email?.split('@')[0] || 'Anonymous User';
+  }
+}
+
 // Insert schemas for validation
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
 }).extend({
-  email: z.string().email(),
-  displayName: z.string().min(1).max(50),
-  bio: z.string().max(200).optional(),
+  email: z.string().email().optional(),
+  firstName: z.string().min(1).max(50).optional(),
+  lastName: z.string().min(1).max(50).optional(),
+  profileImageUrl: z.string().url().optional(),
 });
 
 export const insertEmailCodeSchema = createInsertSchema(emailCodes).omit({
@@ -252,8 +284,7 @@ export const insertModerationEventSchema = createInsertSchema(moderationEvents).
   createdAt: true,
 });
 
-// Types
-export type User = typeof users.$inferSelect;
+// Types (keeping backward compatibility)
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
 export type EmailCode = typeof emailCodes.$inferSelect;

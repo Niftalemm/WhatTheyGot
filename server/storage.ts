@@ -14,6 +14,7 @@ import {
   type ModerationEvent,
   type InsertModerationEvent,
   type User,
+  type UpsertUser,
   type InsertUser,
   type EmailCode,
   type InsertEmailCode,
@@ -34,7 +35,9 @@ import { db } from "./db";
 import { eq, desc, and, gte, or, isNull, sql } from "drizzle-orm";
 
 export interface IStorage {
-  // Users
+  // User operations for Replit Auth
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserById(id: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
@@ -107,8 +110,30 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  // Users
+  // User operations for Replit Auth
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
+  }
+
+  // Legacy user methods (keeping for backward compatibility)
   async getUserByEmail(email: string): Promise<User | undefined> {
+    if (!email) return undefined;
     const [user] = await db.select().from(users).where(eq(users.email, email.toLowerCase()));
     return user;
   }
@@ -119,8 +144,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    // Ensure email is stored in lowercase for consistency
-    const userData = { ...user, email: user.email.toLowerCase() };
+    // Ensure email is stored in lowercase for consistency if provided
+    const userData = user.email ? { ...user, email: user.email.toLowerCase() } : user;
     const [created] = await db.insert(users).values(userData).returning();
     return created;
   }
