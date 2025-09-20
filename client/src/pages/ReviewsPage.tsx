@@ -2,61 +2,15 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Star } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import AdminMessages from "@/components/AdminMessages";
-
-//todo: remove mock functionality
-const mockReviews = [
-  {
-    id: '1',
-    userName: 'Alex M.',
-    userInitials: 'AM',
-    itemName: 'Classic Cheeseburger',
-    station: 'Grill Station',
-    rating: 5,
-    emoji: '🔥',
-    text: 'Actually fire! The patty was juicy and the fries were crispy. Would definitely get again.',
-    timeAgo: '2 hours ago',
-    image: null,
-  },
-  {
-    id: '2', 
-    userName: 'Sarah K.',
-    userInitials: 'SK',
-    itemName: 'Chicken Alfredo Pasta',
-    station: 'International',
-    rating: 4,
-    emoji: '😋',
-    text: 'Pretty good! Sauce was creamy but could use more seasoning.',
-    timeAgo: '4 hours ago',
-    image: null,
-  },
-  {
-    id: '3',
-    userName: 'Mike D.',
-    userInitials: 'MD', 
-    itemName: 'Garden Fresh Salad',
-    station: 'Salad Bar',
-    rating: 2,
-    emoji: '😐',
-    text: 'Lettuce was kinda wilted and the dressing was watery. Skip this one.',
-    timeAgo: '6 hours ago',
-    image: null,
-  },
-  {
-    id: '4',
-    userName: 'Jess L.',
-    userInitials: 'JL',
-    itemName: 'Fluffy Buttermilk Pancakes', 
-    station: 'Grill Station',
-    rating: 5,
-    emoji: '🤤',
-    text: 'OMG these are amazing! Fluffy and the syrup is the good stuff.',
-    timeAgo: '8 hours ago',
-    image: null,
-  },
-];
+import { format } from "date-fns";
 
 export default function ReviewsPage() {
+  const { data: reviews = [], isLoading } = useQuery({
+    queryKey: ['/api/reviews/recent'],
+  });
+
   return (
     <div className="pb-20">
       <div className="sticky top-0 bg-background/95 backdrop-blur-sm py-4 px-4 z-10 border-b border-border">
@@ -73,59 +27,68 @@ export default function ReviewsPage() {
       </div>
       
       <div className="space-y-4 px-4 pt-6">
-
-        {mockReviews.map((review) => (
-          <Card key={review.id} className="hover-elevate" data-testid={`card-review-${review.id}`}>
-            <CardHeader className="pb-3">
-              <div className="flex items-start gap-3">
-                <Avatar className="w-10 h-10">
-                  <AvatarFallback className="text-sm font-medium">
-                    {review.userInitials}
-                  </AvatarFallback>
-                </Avatar>
-                
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-sm" data-testid={`text-reviewer-${review.id}`}>
-                      {review.userName}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-3 h-3 ${
-                            i < review.rating
-                              ? "fill-primary text-primary"
-                              : "text-muted-foreground"
-                          }`}
-                        />
-                      ))}
-                    </div>
-                    {review.emoji && (
-                      <span className="text-lg">{review.emoji}</span>
-                    )}
-                  </div>
+        {isLoading ? (
+          <div className="text-center py-8" data-testid="loading-reviews">
+            Loading reviews...
+          </div>
+        ) : reviews?.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground" data-testid="no-reviews">
+            No reviews yet. Be the first to share your thoughts!
+          </div>
+        ) : (
+          reviews?.map((review: any) => (
+            <Card key={review.id} className="hover-elevate" data-testid={`card-review-${review.id}`}>
+              <CardHeader className="pb-3">
+                <div className="flex items-start gap-3">
+                  <Avatar className="w-10 h-10">
+                    <AvatarFallback className="text-sm font-medium">
+                      {review.user?.displayName?.substring(0, 2).toUpperCase() || "??"}
+                    </AvatarFallback>
+                  </Avatar>
                   
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span data-testid={`text-item-name-${review.id}`}>
-                      {review.itemName}
-                    </span>
-                    <span>•</span>
-                    <span>{review.station}</span>
-                    <span>•</span>
-                    <span>{review.timeAgo}</span>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium text-sm" data-testid={`text-reviewer-${review.id}`}>
+                        {review.user?.displayName || "Anonymous"}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`w-3 h-3 ${
+                              i < review.rating
+                                ? "fill-primary text-primary"
+                                : "text-muted-foreground"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      {review.emoji && (
+                        <span className="text-lg">{review.emoji}</span>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span data-testid={`text-item-name-${review.id}`}>
+                        {review.menuItem?.itemName || "Unknown Item"}
+                      </span>
+                      <span>•</span>
+                      <span>{review.menuItem?.station || "Unknown Station"}</span>
+                      <span>•</span>
+                      <span>{format(new Date(review.createdAt), "h:mm a")}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardHeader>
-            
-            <CardContent className="pt-0">
-              <p className="text-sm leading-relaxed" data-testid={`text-review-content-${review.id}`}>
-                {review.text}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
+              </CardHeader>
+              
+              <CardContent className="pt-0">
+                <p className="text-sm leading-relaxed" data-testid={`text-review-content-${review.id}`}>
+                  {review.text || "No comment provided"}
+                </p>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
     </div>
   );
