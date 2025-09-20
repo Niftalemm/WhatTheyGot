@@ -15,6 +15,8 @@ import {
   type InsertModerationEvent,
   type User,
   type InsertUser,
+  type EmailCode,
+  type InsertEmailCode,
   type ReviewReport,
   type InsertReviewReport,
   menuItems,
@@ -25,6 +27,7 @@ import {
   bannedDevices,
   moderationEvents,
   users,
+  emailCodes,
   reviewReports
 } from "@shared/schema";
 import { db } from "./db";
@@ -43,6 +46,11 @@ export interface IStorage {
     reportsSubmitted: number;
   }>;
   getUserRecentActivity(userId: string, limit?: number): Promise<any[]>;
+  
+  // Email Verification
+  createEmailCode(codeData: InsertEmailCode): Promise<EmailCode>;
+  verifyEmailCode(email: string, code: string): Promise<boolean>;
+  cleanupExpiredCodes(): Promise<void>;
   
   // Menu Items
   getMenuItemsByDate(date: string): Promise<MenuItem[]>;
@@ -165,6 +173,48 @@ export class DatabaseStorage implements IStorage {
       rating: r.rating,
       timeAgo: new Date(Date.now() - new Date(r.createdAt).getTime()).toISOString(),
     }));
+  }
+
+  // Email Verification
+  async createEmailCode(codeData: InsertEmailCode): Promise<EmailCode> {
+    // Ensure email is stored in lowercase for consistency
+    const normalizedData = { ...codeData, email: codeData.email.toLowerCase() };
+    const [created] = await db.insert(emailCodes).values(normalizedData).returning();
+    return created;
+  }
+
+  async verifyEmailCode(email: string, code: string): Promise<boolean> {
+    const [emailCode] = await db
+      .select()
+      .from(emailCodes)
+      .where(
+        and(
+          eq(emailCodes.email, email.toLowerCase()),
+          eq(emailCodes.code, code),
+          eq(emailCodes.isUsed, false),
+          gte(emailCodes.expiresAt, new Date())
+        )
+      )
+      .limit(1);
+
+    if (!emailCode) {
+      return false;
+    }
+
+    // Mark the code as used
+    await db
+      .update(emailCodes)
+      .set({ isUsed: true })
+      .where(eq(emailCodes.id, emailCode.id));
+
+    return true;
+  }
+
+  async cleanupExpiredCodes(): Promise<void> {
+    const now = new Date();
+    await db
+      .delete(emailCodes)
+      .where(sql`${emailCodes.expiresAt} <= ${now}`);
   }
 
   // Menu Items

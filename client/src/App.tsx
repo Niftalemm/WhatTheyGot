@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import BottomNav from "@/components/BottomNav";
 import MenuPage from "@/pages/MenuPage";
+import MenuItemPage from "@/pages/MenuItemPage";
 import ReviewsPage from "@/pages/ReviewsPage";
 import ProfilePage from "@/pages/ProfilePage";
 import AdminLogin from "@/pages/AdminLogin";
@@ -66,8 +67,18 @@ function Router() {
     );
   }
 
-  // Default to main app with bottom navigation
-  return <MainApp />;
+  return (
+    <Switch>
+      {/* Individual menu item pages without bottom navigation */}
+      <Route path="/menu-item/:itemId">
+        {({ itemId }) => <MenuItemPage itemId={itemId} />}
+      </Route>
+      
+      {/* Main app with bottom navigation */}
+      <Route path="/" component={MainApp} />
+      <Route component={NotFound} />
+    </Switch>
+  );
 }
 
 function App() {

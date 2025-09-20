@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Star, MessageCircle, Flag, Plus } from "lucide-react";
 import { useState } from "react";
+import { useLocation } from "wouter";
 
 interface MenuItemProps {
   id: string;
@@ -37,14 +38,23 @@ export default function MenuCard({
 }: MenuItemProps) {
   const [userRating, setUserRating] = useState(0);
   const [hoveredStar, setHoveredStar] = useState(0);
+  const [, setLocation] = useLocation();
 
   const handleStarClick = (starRating: number) => {
     setUserRating(starRating);
     onRate(id, starRating);
   };
 
+  const handleCardClick = () => {
+    setLocation(`/menu-item/${id}`);
+  };
+
   return (
-    <Card className="overflow-hidden hover-elevate" data-testid={`card-menu-item-${id}`}>
+    <Card 
+      className="overflow-hidden hover-elevate cursor-pointer" 
+      data-testid={`card-menu-item-${id}`}
+      onClick={handleCardClick}
+    >
       {image && (
         <div className="relative h-48 overflow-hidden">
           <img 
@@ -103,7 +113,10 @@ export default function MenuCard({
               <button
                 key={star}
                 className="p-1"
-                onClick={() => handleStarClick(star)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStarClick(star);
+                }}
                 onMouseEnter={() => setHoveredStar(star)}
                 onMouseLeave={() => setHoveredStar(0)}
                 data-testid={`button-rate-${star}-${id}`}
@@ -126,7 +139,10 @@ export default function MenuCard({
               variant={isInCalorieCounter ? "default" : "outline"}
               size="sm"
               className="gap-2"
-              onClick={() => onAddToCalorieCounter({ id, name, calories })}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddToCalorieCounter({ id, name, calories });
+              }}
               disabled={isInCalorieCounter}
               data-testid={`button-add-calories-${id}`}
             >
@@ -138,7 +154,10 @@ export default function MenuCard({
             variant="outline" 
             size="sm" 
             className="flex-1 gap-2"
-            onClick={() => onReview(id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onReview(id);
+            }}
             data-testid={`button-review-${id}`}
           >
             <MessageCircle className="w-4 h-4" />
@@ -147,7 +166,10 @@ export default function MenuCard({
           <Button 
             variant="outline" 
             size="sm"
-            onClick={() => onReport(id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onReport(id);
+            }}
             data-testid={`button-report-${id}`}
           >
             <Flag className="w-4 h-4" />

@@ -14,6 +14,19 @@ export const users = pgTable("users", {
   emailUniqueIndex: sql`CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique_lower ON users (LOWER(email))`,
 }));
 
+// Email verification codes for secure authentication
+export const emailCodes = pgTable("email_codes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: text("email").notNull(),
+  code: text("code").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  isUsed: boolean("is_used").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  emailIndex: sql`CREATE INDEX IF NOT EXISTS email_codes_email_idx ON email_codes (email)`,
+  expiryIndex: sql`CREATE INDEX IF NOT EXISTS email_codes_expires_at_idx ON email_codes (expires_at)`,
+}));
+
 // Menu Items from Sodexo scraping
 export const menuItems = pgTable("menu_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -180,6 +193,12 @@ export const insertUserSchema = createInsertSchema(users).omit({
   bio: z.string().max(200).optional(),
 });
 
+export const insertEmailCodeSchema = createInsertSchema(emailCodes).omit({
+  id: true,
+  createdAt: true,
+  isUsed: true,
+});
+
 export const insertMenuItemSchema = createInsertSchema(menuItems).omit({
   id: true,
   createdAt: true,
@@ -236,6 +255,9 @@ export const insertModerationEventSchema = createInsertSchema(moderationEvents).
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+
+export type EmailCode = typeof emailCodes.$inferSelect;
+export type InsertEmailCode = z.infer<typeof insertEmailCodeSchema>;
 
 export type MenuItem = typeof menuItems.$inferSelect;
 export type InsertMenuItem = z.infer<typeof insertMenuItemSchema>;
