@@ -20,7 +20,36 @@ export function AuthButton() {
     return (
       <Button 
         variant="default" 
-        onClick={() => window.location.href = "/api/login"}
+        onClick={() => {
+          const email = prompt("Enter your email to sign in (or create account):");
+          if (email) {
+            const displayName = prompt("Enter your display name (for new accounts):");
+            if (displayName) {
+              // Try signup first, fallback to signin
+              fetch('/api/auth/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, displayName })
+              }).then(async res => {
+                if (res.ok) {
+                  window.location.reload();
+                } else {
+                  // If signup fails, try signin
+                  const signinRes = await fetch('/api/auth/signin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                  });
+                  if (signinRes.ok) {
+                    window.location.reload();
+                  } else {
+                    alert('Failed to sign in');
+                  }
+                }
+              });
+            }
+          }
+        }}
         data-testid="button-login"
       >
         Sign In
@@ -50,7 +79,10 @@ export function AuthButton() {
             </div>
           )}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => window.location.href = "/api/logout"} data-testid="button-logout">
+        <DropdownMenuItem onClick={() => {
+          fetch('/api/auth/signout', { method: 'POST' })
+            .then(() => window.location.reload());
+        }} data-testid="button-logout">
           <LogOut className="mr-2 h-4 w-4" />
           Sign out
         </DropdownMenuItem>

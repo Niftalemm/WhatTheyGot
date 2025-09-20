@@ -110,7 +110,7 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  // User operations for Replit Auth
+  // User operations for simple auth
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
@@ -121,7 +121,7 @@ export class DatabaseStorage implements IStorage {
       .insert(users)
       .values(userData)
       .onConflictDoUpdate({
-        target: users.id,
+        target: users.email,
         set: {
           ...userData,
           updatedAt: new Date(),
@@ -144,8 +144,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    // Ensure email is stored in lowercase for consistency if provided
-    const userData = user.email ? { ...user, email: user.email.toLowerCase() } : user;
+    // Ensure email is stored in lowercase for consistency
+    const userData = { ...user, email: user.email.toLowerCase() };
     const [created] = await db.insert(users).values(userData).returning();
     return created;
   }

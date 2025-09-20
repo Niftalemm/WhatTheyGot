@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertReviewSchema, insertReportSchema, insertAdminMessageSchema, insertMenuItemSchema, insertUserSchema, insertReviewReportSchema, reviews, bannedDevices, users, User, getUserDisplayName } from "@shared/schema";
+import { insertReviewSchema, insertReportSchema, insertAdminMessageSchema, insertMenuItemSchema, insertUserSchema, insertReviewReportSchema, reviews, bannedDevices, users, User } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { menuScraper } from "./scraper";
 import jwt from "jsonwebtoken";
@@ -150,32 +150,17 @@ function requireAdmin(req: AdminRequest, res: any, next: any) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Conditionally set up Replit Auth
-  let isAuthenticated: any = null;
-  if (process.env.REPLIT_DOMAINS) {
-    try {
-      const { setupAuth, isAuthenticated: replitAuth } = await import('./replitAuth');
-      await setupAuth(app);
-      isAuthenticated = replitAuth;
-      console.log('Replit Auth enabled');
-    } catch (error) {
-      console.error('Failed to setup Replit Auth:', error);
-    }
-  }
+  // Set up simple authentication
+  const { setupSimpleAuth, requireAuth } = await import('./simpleAuth');
+  setupSimpleAuth(app);
 
-  // Auth endpoint - return current user if authenticated
+  // Simple auth endpoints
   app.get('/api/auth/user', async (req: any, res) => {
     try {
-      if (isAuthenticated && req.isAuthenticated && req.isAuthenticated()) {
-        const userId = req.user?.claims?.sub;
-        if (userId) {
-          const user = await storage.getUser(userId);
-          if (user) {
-            return res.json({
-              ...user,
-              displayName: getUserDisplayName(user)
-            });
-          }
+      if (req.session?.userId) {
+        const user = await storage.getUser(req.session.userId);
+        if (user) {
+          return res.json(user);
         }
       }
       res.json(null);
@@ -183,6 +168,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error fetching user:', error);
       res.json(null);
     }
+  });
+
+  // Sign up with email and display name
+  app.post('/api/auth/signup', async (req, res) => {
+    try {
+      const validatedData = insertUserSchema.parse(req.body);
+      
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(validatedData.email);
+      if (existingUser) {
+        return res.status(409).json({ error: "An account with this email already exists" });
+      }
+      
+      // Create new user
+      const user = await storage.createUser(validatedData);
+      
+      // Set session
+      (req.session as any).userId = user.id;
+      
+      res.status(201).json({
+        user,
+        message: "Account created successfully",
+      });
+    } catch (error: any) {
+      console.error("User signup error:", error);
+      if (error.name === "ZodError") {
+        return res.status(400).json({ 
+          error: "Invalid signup data", 
+          details: error.errors 
+        });
+      }
+      res.status(500).json({ error: "Failed to create account" });
+    }
+  });
+
+  // Sign in with email
+  app.post('/api/auth/signin', async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+      
+      // Find user by email
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(401).json({ error: "No account found with this email" });
+      }
+      
+      // Set session
+      (req.session as any).userId = user.id;
+      
+      res.json({
+        user,
+        message: "Signed in successfully",
+      });
+    } catch (error: any) {
+      console.error("User signin error:", error);
+      res.status(500).json({ error: "Failed to sign in" });
+    }
+  });
+
+  // Sign out
+  app.post('/api/auth/signout', (req, res) => {
+    req.session?.destroy((err) => {
+      if (err) {
+        console.error('Session destruction error:', err);
+        return res.status(500).json({ error: 'Failed to sign out' });
+      }
+      res.json({ message: 'Signed out successfully' });
+    });
   });
 
   // Helper function to get current meal period in America/Chicago timezone
@@ -289,8 +346,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get authenticated user if available
       let userId = null;
-      if (isAuthenticated && req.isAuthenticated && req.isAuthenticated()) {
-        userId = req.user?.claims?.sub;
+      if ((req.session as any)?.userId) {
+        userId = (req.session as any).userId;
       }
       
       // Check if device is banned
