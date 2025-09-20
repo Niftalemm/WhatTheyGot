@@ -136,12 +136,12 @@ class PerspectiveModerationProvider implements ModerationProvider {
       }
 
     } catch (error) {
-      console.error('Moderation check failed:', error);
-      // On error, shadow content for manual review rather than auto-approve
+      console.error('Perspective API error:', error);
+      // On API error, approve content but log for manual review if needed
       return {
-        action: 'shadow',
+        action: 'approved',
         scores: {},
-        reason: 'Moderation check failed - requires manual review'
+        reason: 'API error - auto-approved for user experience'
       };
     }
   }

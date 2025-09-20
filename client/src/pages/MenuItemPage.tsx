@@ -11,6 +11,7 @@ import { ArrowLeft, Star, MessageCircle, Flag, AlertTriangle } from "lucide-reac
 import { useLocation } from "wouter";
 import type { MenuItem, Review } from "@shared/schema";
 import ReviewModal from "@/components/ReviewModal";
+import ReportReviewModal from "@/components/ReportReviewModal";
 
 interface MenuItemPageProps {
   itemId: string;
@@ -34,6 +35,10 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
   const [reviewModal, setReviewModal] = useState({
     isOpen: false,
     itemName: '',
+  });
+  const [reportModal, setReportModal] = useState({
+    isOpen: false,
+    reviewId: '',
   });
 
   // Fetch menu item details
@@ -82,11 +87,40 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
     reviewMutation.mutate(reviewData);
   };
 
-  const handleReportReview = async (reviewId: string) => {
-    // TODO: Implement review reporting when authentication is complete
-    toast({
-      title: "Report submitted",
-      description: "Thank you for reporting this review. It will be reviewed by moderators.",
+  // Report review mutation
+  const reportMutation = useMutation({
+    mutationFn: async (reportData: { reviewId: string; reason: string; details?: string }) => {
+      return apiRequest('POST', `/api/reports`, {
+        reviewId: reportData.reviewId,
+        reason: reportData.reason,
+        details: reportData.details,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/reviews', itemId] });
+      toast({
+        title: "Report submitted",
+        description: "Thank you for reporting this review. It has been hidden and will be reviewed by moderators.",
+      });
+      setReportModal({ isOpen: false, reviewId: '' });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to submit report",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleReportReview = (reviewId: string) => {
+    setReportModal({ isOpen: true, reviewId });
+  };
+
+  const handleReportSubmit = (reportData: { reason: string; details?: string }) => {
+    reportMutation.mutate({
+      reviewId: reportModal.reviewId,
+      ...reportData,
     });
   };
 
@@ -312,6 +346,14 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
         onClose={() => setReviewModal({ ...reviewModal, isOpen: false })}
         itemName={reviewModal.itemName}
         onSubmit={handleReviewSubmit}
+      />
+
+      {/* Report Review Modal */}
+      <ReportReviewModal
+        isOpen={reportModal.isOpen}
+        onClose={() => setReportModal({ isOpen: false, reviewId: '' })}
+        reviewId={reportModal.reviewId}
+        onSubmit={handleReportSubmit}
       />
     </div>
   );

@@ -582,7 +582,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Review reports route
+  // Simplified reporting route (works without authentication for now)
+  app.post("/api/reports", async (req, res) => {
+    try {
+      const { reviewId, reason, details } = req.body;
+      
+      if (!reviewId || !reason) {
+        return res.status(400).json({ error: "Review ID and reason are required" });
+      }
+      
+      const deviceId = generateDeviceId(req);
+      const deviceIdHash = createDeviceHash(deviceId);
+      
+      const reportData = {
+        reviewId,
+        reportedByDeviceId: deviceIdHash, // Use device ID until auth is implemented
+        reason: reason.trim(),
+        details: details?.trim() || null,
+      };
+      
+      const report = await storage.createReviewReport(reportData);
+      
+      res.status(201).json({
+        ...report,
+        message: "Review reported successfully. It has been hidden and will be reviewed by moderators.",
+      });
+    } catch (error: any) {
+      console.error("Error creating report:", error);
+      if (error.name === "ZodError") {
+        return res.status(400).json({ 
+          error: "Invalid report data", 
+          details: error.errors 
+        });
+      }
+      res.status(500).json({ error: "Failed to create report" });
+    }
+  });
+
+  // Review reports route (for authenticated users when auth is implemented)
   app.post("/api/reviews/:reviewId/report", requireUser, async (req: UserRequest, res) => {
     try {
       const { reviewId } = req.params;
