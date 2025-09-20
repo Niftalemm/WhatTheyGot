@@ -7,7 +7,7 @@ import AdminMessages from "@/components/AdminMessages";
 import { format } from "date-fns";
 
 export default function ReviewsPage() {
-  const { data: reviews = [], isLoading } = useQuery({
+  const { data: reviews = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/reviews/recent'],
   });
 
