@@ -60,7 +60,7 @@ export interface IStorage {
   
   // Reviews  
   getReviewsForMenuItem(menuItemId: string): Promise<Review[]>;
-  getRecentReviews(limit?: number): Promise<(Review & { menuItem: MenuItem })[]>;
+  getRecentReviews(limit?: number): Promise<(Review & { menuItem: MenuItem; user?: User })[]>;
   getAllReviews(limit?: number): Promise<(Review & { menuItem: MenuItem })[]>;
   createReview(review: InsertReview): Promise<Review>;
   flagReview(id: string): Promise<void>;
@@ -253,7 +253,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(reviews.createdAt));
   }
 
-  async getRecentReviews(limit = 20): Promise<(Review & { menuItem: MenuItem })[]> {
+  async getRecentReviews(limit = 20): Promise<(Review & { menuItem: MenuItem; user?: User })[]> {
     const results = await db
       .select({
         id: reviews.id,
@@ -271,9 +271,11 @@ export class DatabaseStorage implements IStorage {
         flaggedReason: reviews.flaggedReason,
         createdAt: reviews.createdAt,
         menuItem: menuItems,
+        user: users,
       })
       .from(reviews)
       .innerJoin(menuItems, eq(reviews.menuItemId, menuItems.id))
+      .leftJoin(users, eq(reviews.userId, users.id)) // Left join since not all reviews have users
       .where(
         and(
           eq(reviews.isHidden, false), // Only show non-hidden reviews
@@ -284,7 +286,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(reviews.createdAt))
       .limit(limit);
       
-    return results as (Review & { menuItem: MenuItem })[];
+    return results as (Review & { menuItem: MenuItem; user?: User })[];
   }
 
   async createReview(review: InsertReview): Promise<Review> {
