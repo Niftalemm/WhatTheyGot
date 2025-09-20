@@ -582,8 +582,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Simplified reporting route (works without authentication for now)
-  app.post("/api/reports", async (req, res) => {
+  // Simplified review reporting route (works without authentication for now)
+  app.post("/api/review-reports", async (req, res) => {
     try {
       const { reviewId, reason, details } = req.body;
       

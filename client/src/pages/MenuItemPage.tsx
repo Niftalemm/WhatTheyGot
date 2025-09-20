@@ -90,7 +90,7 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
   // Report review mutation
   const reportMutation = useMutation({
     mutationFn: async (reportData: { reviewId: string; reason: string; details?: string }) => {
-      return apiRequest('POST', `/api/reports`, {
+      return apiRequest('POST', `/api/review-reports`, {
         reviewId: reportData.reviewId,
         reason: reportData.reason,
         details: reportData.details,
