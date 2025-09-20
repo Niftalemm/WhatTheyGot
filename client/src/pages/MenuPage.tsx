@@ -16,7 +16,6 @@ import type { MenuItem, Review } from "@shared/schema";
 import breakfastImage from '@assets/generated_images/University_breakfast_spread_hero_5b900fb1.png';
 import lunchImage from '@assets/generated_images/University_lunch_spread_hero_3f701dd6.png';
 import dinnerImage from '@assets/generated_images/University_dinner_spread_hero_9c67f7bd.png';
-import { AuthButton } from "@/components/AuthButton";
 import { ProtectedContent } from "@/components/ProtectedContent";
 
 // Real MNSU Dining Station mapping for better display
@@ -250,11 +249,6 @@ export default function MenuPage() {
           currentMeal={getCurrentMeal()}
           lastUpdated={new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         />
-
-        {/* Sign In button beneath the banner */}
-        <div className="flex justify-center mt-6 mb-4">
-          <AuthButton />
-        </div>
 
         {stations.length > 0 && (
           <StationCarousel
