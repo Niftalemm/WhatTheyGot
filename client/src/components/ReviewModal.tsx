@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Star, Camera, Smile } from "lucide-react";
+import { Star } from "lucide-react";
 import { useState } from "react";
 
 interface ReviewModalProps {
@@ -12,7 +12,6 @@ interface ReviewModalProps {
     rating: number;
     text: string;
     emoji: string;
-    photo?: File;
   }) => void;
 }
 
@@ -28,8 +27,6 @@ export default function ReviewModal({
   const [hoveredStar, setHoveredStar] = useState(0);
   const [reviewText, setReviewText] = useState("");
   const [selectedEmoji, setSelectedEmoji] = useState("");
-  const [photo, setPhoto] = useState<File | null>(null);
-
   const handleSubmit = () => {
     if (rating === 0) return;
     
@@ -37,22 +34,13 @@ export default function ReviewModal({
       rating,
       text: reviewText,
       emoji: selectedEmoji,
-      photo: photo || undefined
     });
     
     // Reset form
     setRating(0);
     setReviewText("");
     setSelectedEmoji("");
-    setPhoto(null);
     onClose();
-  };
-
-  const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setPhoto(file);
-    }
   };
 
   return (
@@ -123,27 +111,6 @@ export default function ReviewModal({
             />
           </div>
 
-          {/* Photo Upload */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Add a photo</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="file"
-                id="photo-upload"
-                accept="image/*"
-                onChange={handlePhotoUpload}
-                className="hidden"
-              />
-              <label
-                htmlFor="photo-upload"
-                className="flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer hover-elevate"
-                data-testid="button-photo-upload"
-              >
-                <Camera className="w-4 h-4" />
-                {photo ? photo.name : "Choose photo"}
-              </label>
-            </div>
-          </div>
 
           {/* Action Buttons */}
           <div className="flex gap-2 pt-4">

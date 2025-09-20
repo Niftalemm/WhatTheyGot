@@ -598,17 +598,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         reviewId,
         reportedByDeviceId: deviceIdHash, // Use device ID until auth is implemented
         reason: reason.trim(),
-        details: details?.trim() || null,
       };
       
-      const report = await storage.createReviewReport(reportData);
+      // Use the correct schema for review reports
+      const validated = insertReviewReportSchema.parse(reportData);
+      const report = await storage.createReviewReport(validated);
       
       res.status(201).json({
         ...report,
         message: "Review reported successfully. It has been hidden and will be reviewed by moderators.",
       });
     } catch (error: any) {
-      console.error("Error creating report:", error);
+      console.error("Error creating review report:", error);
       if (error.name === "ZodError") {
         return res.status(400).json({ 
           error: "Invalid report data", 
