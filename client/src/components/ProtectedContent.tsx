@@ -23,11 +23,13 @@ export function ProtectedContent({
   }
 
   if (!isAuthenticated) {
+    const blurClass = blurLevel === 'sm' ? 'blur-sm' : blurLevel === 'lg' ? 'blur-lg' : 'blur';
+    
     return (
       <>
         <div className="relative">
           {/* Blurred content */}
-          <div className={`blur-${blurLevel} pointer-events-none select-none`}>
+          <div className={`${blurClass} pointer-events-none select-none`}>
             {children}
           </div>
           
@@ -43,6 +45,12 @@ export function ProtectedContent({
                       Please sign in to view and post reviews
                     </p>
                   </div>
+                  <Button 
+                    onClick={() => setShowLoginModal(true)}
+                    data-testid="button-signin-overlay"
+                  >
+                    Sign in to continue
+                  </Button>
                 </>
               )}
             </div>

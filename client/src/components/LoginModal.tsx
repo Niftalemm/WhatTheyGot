@@ -55,14 +55,14 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
         }
       } else {
         const error = await response.json();
-        if (response.status === 409 && !isSignUp) {
+        if (response.status === 409 && isSignUp) {
           // Account exists, switch to signin mode
           setIsSignUp(false);
           toast({
             title: "Account found",
             description: "Please sign in to your existing account",
           });
-        } else if (response.status === 401 && isSignUp) {
+        } else if (response.status === 401 && !isSignUp) {
           // Account doesn't exist, switch to signup mode
           setIsSignUp(true);
           toast({
@@ -139,57 +139,96 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
       <DialogContent className="sm:max-w-md" data-testid="dialog-login">
         <DialogHeader>
           <DialogTitle>
-            {isSignUp ? "Create Account" : "Sign In"}
+            {needsVerification ? "Verify Email" : (isSignUp ? "Create Account" : "Sign In")}
           </DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-              required
-              data-testid="input-email"
-            />
-          </div>
-          
-          {isSignUp && (
+        {needsVerification ? (
+          <form onSubmit={handleVerification} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="displayName">Display Name</Label>
+              <Label htmlFor="code">Verification Code</Label>
               <Input
-                id="displayName"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Enter your display name"
+                id="code"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value)}
+                placeholder="Enter 6-digit code"
                 required
-                data-testid="input-display-name"
+                maxLength={6}
+                data-testid="input-verification-code"
+              />
+              <p className="text-sm text-muted-foreground">
+                Code sent to {email}
+              </p>
+            </div>
+            
+            <div className="flex flex-col space-y-2">
+              <Button 
+                type="submit" 
+                disabled={isLoading}
+                data-testid="button-verify"
+              >
+                {isLoading ? "Verifying..." : "Verify Code"}
+              </Button>
+              
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setNeedsVerification(false)}
+                data-testid="button-back"
+              >
+                Back to Sign Up
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
+                required
+                data-testid="input-email"
               />
             </div>
-          )}
-          
-          <div className="flex flex-col space-y-2">
-            <Button 
-              type="submit" 
-              disabled={isLoading}
-              data-testid="button-submit"
-            >
-              {isLoading ? "Loading..." : (isSignUp ? "Create Account" : "Sign In")}
-            </Button>
             
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setIsSignUp(!isSignUp)}
-              data-testid="button-toggle-mode"
-            >
-              {isSignUp ? "Already have an account? Sign in" : "Need an account? Sign up"}
-            </Button>
-          </div>
-        </form>
+            {isSignUp && (
+              <div className="space-y-2">
+                <Label htmlFor="displayName">Display Name</Label>
+                <Input
+                  id="displayName"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Enter your display name"
+                  required
+                  data-testid="input-display-name"
+                />
+              </div>
+            )}
+            
+            <div className="flex flex-col space-y-2">
+              <Button 
+                type="submit" 
+                disabled={isLoading}
+                data-testid="button-submit"
+              >
+                {isLoading ? "Loading..." : (isSignUp ? "Create Account" : "Sign In")}
+              </Button>
+              
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setIsSignUp(!isSignUp)}
+                data-testid="button-toggle-mode"
+              >
+                {isSignUp ? "Already have an account? Sign in" : "Need an account? Sign up"}
+              </Button>
+            </div>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

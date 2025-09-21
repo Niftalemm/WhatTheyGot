@@ -204,11 +204,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Store user data temporarily in session for after verification
       (req.session as any).pendingUser = { email, displayName };
       
-      res.json({
+      // In development mode, include the code for testing
+      const response: any = {
         message: "Verification code sent to your email",
         needsVerification: true,
         emailSent,
-      });
+      };
+      
+      if (process.env.NODE_ENV === 'development' && !process.env.SENDGRID_API_KEY) {
+        response.devCode = code;
+        console.log(`🔑 Verification code for ${email}: ${code}`);
+      }
+      
+      res.json(response);
     } catch (error: any) {
       console.error("User signup error:", error);
       res.status(500).json({ error: "Failed to send verification code" });
