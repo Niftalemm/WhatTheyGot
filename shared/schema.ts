@@ -14,11 +14,13 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)]
 );
 
-// Simple user authentication with email verification
+// User authentication (compatible with Replit Auth and simple auth)
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").notNull().unique(),
-  displayName: varchar("display_name").notNull(),
+  email: varchar("email").unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  displayName: varchar("display_name"), // Keep for backward compatibility
   bio: text("bio"),
   profileImageUrl: varchar("profile_image_url"),
   isVerified: boolean("is_verified").default(false),
@@ -207,8 +209,10 @@ export const insertUserSchema = createInsertSchema(users).omit({
   updatedAt: true,
   isVerified: true,
 }).extend({
-  email: z.string().email(),
-  displayName: z.string().min(1).max(50),
+  email: z.string().email().optional(),
+  firstName: z.string().min(1).max(50).optional(),
+  lastName: z.string().min(1).max(50).optional(),
+  displayName: z.string().min(1).max(50).optional(),
   bio: z.string().max(200).optional(),
   profileImageUrl: z.string().url().optional(),
 });

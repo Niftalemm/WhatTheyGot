@@ -121,7 +121,7 @@ export class DatabaseStorage implements IStorage {
       .insert(users)
       .values(userData)
       .onConflictDoUpdate({
-        target: users.email,
+        target: users.id,
         set: {
           ...userData,
           updatedAt: new Date(),
@@ -144,8 +144,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    // Ensure email is stored in lowercase for consistency
-    const userData = { ...user, email: user.email.toLowerCase() };
+    // Ensure email is stored in lowercase for consistency (only if email is provided)
+    const userData = { 
+      ...user, 
+      email: user.email ? user.email.toLowerCase() : user.email 
+    };
     const [created] = await db.insert(users).values(userData).returning();
     return created;
   }

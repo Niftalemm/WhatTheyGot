@@ -4,8 +4,10 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { useAuth } from "@/hooks/useAuth";
+import Landing from "@/pages/Landing";
+import Home from "@/pages/Home";
 import BottomNav from "@/components/BottomNav";
-import { AuthButton } from "@/components/AuthButton";
 import MenuPage from "@/pages/MenuPage";
 import MenuItemPage from "@/pages/MenuItemPage";
 import ReviewsPage from "@/pages/ReviewsPage";
@@ -51,6 +53,7 @@ function MainApp() {
 }
 
 function Router() {
+  const { isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
 
   // Check if we're on an admin route
@@ -68,6 +71,17 @@ function Router() {
     );
   }
 
+  // Show landing page for logged out users or while loading
+  if (isLoading || !isAuthenticated) {
+    return (
+      <Switch>
+        <Route path="/" component={Landing} />
+        <Route component={Landing} />
+      </Switch>
+    );
+  }
+
+  // Show protected content for logged in users
   return (
     <Switch>
       {/* Individual menu item pages without bottom navigation */}
@@ -75,8 +89,11 @@ function Router() {
         {({ itemId }) => <MenuItemPage itemId={itemId} />}
       </Route>
       
-      {/* Main app with bottom navigation */}
-      <Route path="/" component={MainApp} />
+      {/* Protected routes for authenticated users */}
+      <Route path="/" component={Home} />
+      <Route path="/menu" component={MainApp} />
+      <Route path="/reviews" component={ReviewsPage} />
+      <Route path="/profile" component={ProfilePage} />
       <Route component={NotFound} />
     </Switch>
   );
