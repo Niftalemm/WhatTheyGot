@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { Star, Utensils, Calendar, Shield, Github, Mail } from "lucide-react";
+import { Star, Utensils, Calendar, Shield, Github, Mail, Rocket, Sparkles, PartyPopper, MessageCircle, Lock, CheckCircle, Trophy } from "lucide-react";
 import { SiGoogle, SiApple } from "react-icons/si";
 
 export default function Landing() {
@@ -13,156 +13,243 @@ export default function Landing() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-blue-50 to-cyan-50 dark:from-violet-950 dark:via-blue-950 dark:to-cyan-950">
+      <div className="container mx-auto px-4 py-6 sm:py-8">
         {/* Hero Section with Background */}
-        <div className="relative mb-12">
-          <AspectRatio ratio={16 / 9} className="overflow-hidden rounded-lg">
-            <div className="absolute inset-0 bg-gradient-to-br from-black/60 to-black/40 z-10" />
+        <div className="relative mb-8 sm:mb-12">
+          <AspectRatio ratio={4 / 3} className="sm:aspect-[16/9] overflow-hidden rounded-2xl shadow-2xl">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-600/80 via-blue-600/70 to-teal-600/80 z-10" />
             <img 
               src="/attached_assets/generated_images/University_lunch_spread_hero_3f701dd6.png"
               alt="Campus dining spread"
               className="absolute inset-0 w-full h-full object-cover"
             />
-            <div className="relative z-20 flex flex-col justify-center items-center text-center h-full text-white p-8">
-              <h1 className="text-3xl md:text-5xl font-bold mb-4">
-                Campus Menu Reviews
-              </h1>
-              <p className="text-lg md:text-xl mb-6 max-w-lg">
-                Real students, real reviews. Find the best campus eats.
-              </p>
-              
-              {/* Main CTA */}
-              <div className="space-y-3">
-                <Button 
-                  onClick={handleLogin}
-                  size="lg"
-                  className="px-8 py-6 text-lg font-medium"
-                  data-testid="button-login"
-                >
-                  Sign in to start rating
-                </Button>
-                <p className="text-sm text-white/80">
-                  We use accounts to keep reviews real
-                </p>
+            <div className="relative z-20 flex flex-col justify-center items-center text-center h-full text-white p-4 sm:p-8">
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-white/20">
+                <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-2 sm:mb-4 bg-gradient-to-r from-white to-cyan-200 bg-clip-text text-transparent">
+                  Campus Menu Reviews
+                </h1>
+                <div className="flex items-center justify-center gap-2 mb-4 sm:mb-6">
+                  <Utensils className="h-5 w-5 text-cyan-200" />
+                  <p className="text-base sm:text-lg md:text-xl max-w-lg text-cyan-100">
+                    Real students, real reviews. Find the best campus eats!
+                  </p>
+                  <Star className="h-5 w-5 text-yellow-300" />
+                </div>
                 
-                {/* Provider Chips */}
-                <div className="flex items-center justify-center gap-2 mt-4">
-                  <Button variant="ghost" size="sm" className="text-white/80 hover:bg-white/10">
-                    <SiGoogle className="h-4 w-4" />
+                {/* Main CTA */}
+                <div className="space-y-3 sm:space-y-4">
+                  <Button 
+                    onClick={handleLogin}
+                    size="lg"
+                    className="px-6 sm:px-8 py-4 sm:py-6 text-base sm:text-lg font-medium"
+                    data-testid="button-login"
+                  >
+                    <Rocket className="h-4 w-4 mr-2" />
+                    Sign in to start rating
                   </Button>
-                  <Button variant="ghost" size="sm" className="text-white/80 hover:bg-white/10">
-                    <Github className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-white/80 hover:bg-white/10">
-                    <SiApple className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-white/80 hover:bg-white/10">
-                    <Mail className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center justify-center gap-1">
+                    <Sparkles className="h-3 w-3 text-white/90" />
+                    <p className="text-xs sm:text-sm text-white/90 font-medium">
+                      We use accounts to keep reviews real
+                    </p>
+                  </div>
+                  
+                  {/* Provider Chips - Mobile Optimized */}
+                  <div className="flex items-center justify-center gap-2 sm:gap-3 mt-4">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={handleLogin}
+                      className="text-white/90 border border-white/30 rounded-full p-2 sm:p-3"
+                      data-testid="button-login-google"
+                    >
+                      <SiGoogle className="h-4 w-4 sm:h-5 sm:w-5 text-red-300" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={handleLogin}
+                      className="text-white/90 border border-white/30 rounded-full p-2 sm:p-3"
+                      data-testid="button-login-github"
+                    >
+                      <Github className="h-4 w-4 sm:h-5 sm:w-5 text-gray-300" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={handleLogin}
+                      className="text-white/90 border border-white/30 rounded-full p-2 sm:p-3"
+                      data-testid="button-login-apple"
+                    >
+                      <SiApple className="h-4 w-4 sm:h-5 sm:w-5 text-gray-200" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={handleLogin}
+                      className="text-white/90 border border-white/30 rounded-full p-2 sm:p-3"
+                      data-testid="button-login-email"
+                    >
+                      <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-blue-200" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
           </AspectRatio>
         </div>
 
-        {/* Benefits Strip */}
-        <div className="grid md:grid-cols-3 gap-6 mb-12">
-          <div className="text-center">
-            <Star className="h-8 w-8 text-yellow-500 mx-auto mb-3" />
-            <h3 className="font-semibold mb-1">Rate & Discover</h3>
-            <p className="text-sm text-muted-foreground">Find hidden gems and avoid disappointments</p>
-          </div>
-          <div className="text-center">
-            <Utensils className="h-8 w-8 text-green-500 mx-auto mb-3" />
-            <h3 className="font-semibold mb-1">Authentic Reviews</h3>
-            <p className="text-sm text-muted-foreground">Real students sharing honest food experiences</p>
-          </div>
-          <div className="text-center">
-            <Calendar className="h-8 w-8 text-blue-500 mx-auto mb-3" />
-            <h3 className="font-semibold mb-1">Daily Menus</h3>
-            <p className="text-sm text-muted-foreground">Check what's cooking before you go</p>
-          </div>
+        {/* Benefits Strip - Mobile First */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-8 sm:mb-12">
+          <Card className="text-center border-0 bg-gradient-to-br from-yellow-100 to-orange-100 dark:from-yellow-900/30 dark:to-orange-900/30 hover:shadow-lg transition-all duration-200 p-4 sm:p-6">
+            <div className="p-3 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 flex items-center justify-center">
+              <Star className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
+            </div>
+            <h3 className="font-bold mb-2 text-base sm:text-lg text-orange-800 dark:text-orange-200">Rate & Discover</h3>
+            <p className="text-sm text-orange-700 dark:text-orange-300">Find hidden gems and avoid disappointments</p>
+          </Card>
+          <Card className="text-center border-0 bg-gradient-to-br from-green-100 to-emerald-100 dark:from-green-900/30 dark:to-emerald-900/30 hover:shadow-lg transition-all duration-200 p-4 sm:p-6">
+            <div className="p-3 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 flex items-center justify-center">
+              <Utensils className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
+            </div>
+            <h3 className="font-bold mb-2 text-base sm:text-lg text-emerald-800 dark:text-emerald-200">Authentic Reviews</h3>
+            <p className="text-sm text-emerald-700 dark:text-emerald-300">Real students sharing honest food experiences</p>
+          </Card>
+          <Card className="text-center border-0 bg-gradient-to-br from-blue-100 to-cyan-100 dark:from-blue-900/30 dark:to-cyan-900/30 hover:shadow-lg transition-all duration-200 p-4 sm:p-6">
+            <div className="p-3 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-full w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 flex items-center justify-center">
+              <Calendar className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
+            </div>
+            <h3 className="font-bold mb-2 text-base sm:text-lg text-cyan-800 dark:text-cyan-200">Daily Menus</h3>
+            <p className="text-sm text-cyan-700 dark:text-cyan-300">Check what's cooking before you go</p>
+          </Card>
         </div>
 
-        {/* Preview Carousel */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold text-center mb-6">See what students are saying</h2>
+        {/* Preview Carousel - Mobile Optimized */}
+        <div className="mb-8 sm:mb-12">
+          <div className="flex items-center justify-center gap-2 mb-4 sm:mb-6">
+            <MessageCircle className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+            <h2 className="text-xl sm:text-2xl font-bold text-center bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400 bg-clip-text text-transparent">
+              See what students are saying
+            </h2>
+          </div>
           <div className="max-w-2xl mx-auto">
             <Carousel>
               <CarouselContent>
                 <CarouselItem>
-                  <Card>
-                    <CardContent className="p-6 text-center">
+                  <Card className="border-0 bg-gradient-to-br from-pink-50 to-rose-100 dark:from-pink-900/20 dark:to-rose-900/20 shadow-lg">
+                    <CardContent className="p-4 sm:p-6 text-center">
                       <div className="flex justify-center mb-3">
-                        <div className="flex">
+                        <div className="flex bg-yellow-100 dark:bg-yellow-900/30 rounded-full p-2">
                           {[1, 2, 3, 4, 5].map((star) => (
-                            <Star key={star} className="h-5 w-5 text-yellow-400 fill-current" />
+                            <Star key={star} className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500 fill-current" />
                           ))}
                         </div>
                       </div>
-                      <p className="font-medium mb-2">"Best pasta on campus!"</p>
-                      <p className="text-sm text-muted-foreground">Dining Hall • Italian Station</p>
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <p className="font-bold text-base sm:text-lg text-pink-800 dark:text-pink-200">"Best pasta on campus!"</p>
+                        <Utensils className="h-4 w-4 text-pink-600" />
+                      </div>
+                      <Badge variant="secondary" className="bg-pink-200 text-pink-800 dark:bg-pink-800 dark:text-pink-200">
+                        Dining Hall • Italian Station
+                      </Badge>
                     </CardContent>
                   </Card>
                 </CarouselItem>
                 <CarouselItem>
-                  <Card>
-                    <CardContent className="p-6 text-center">
+                  <Card className="border-0 bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/20 shadow-lg">
+                    <CardContent className="p-4 sm:p-6 text-center">
                       <div className="flex justify-center mb-3">
-                        <div className="flex">
+                        <div className="flex bg-yellow-100 dark:bg-yellow-900/30 rounded-full p-2">
                           {[1, 2, 3, 4].map((star) => (
-                            <Star key={star} className="h-5 w-5 text-yellow-400 fill-current" />
+                            <Star key={star} className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500 fill-current" />
                           ))}
-                          <Star className="h-5 w-5 text-gray-300" />
+                          <Star className="h-4 w-4 sm:h-5 sm:w-5 text-gray-300" />
                         </div>
                       </div>
-                      <p className="font-medium mb-2">"Great salad bar options"</p>
-                      <p className="text-sm text-muted-foreground">Student Union • Fresh Market</p>
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <p className="font-bold text-base sm:text-lg text-emerald-800 dark:text-emerald-200">"Great salad bar options"</p>
+                        <Star className="h-4 w-4 text-emerald-600" />
+                      </div>
+                      <Badge variant="secondary" className="bg-emerald-200 text-emerald-800 dark:bg-emerald-800 dark:text-emerald-200">
+                        Student Union • Fresh Market
+                      </Badge>
                     </CardContent>
                   </Card>
                 </CarouselItem>
                 <CarouselItem>
-                  <Card>
-                    <CardContent className="p-6 text-center">
-                      <Badge variant="secondary" className="mb-3">Allergen Info</Badge>
-                      <p className="font-medium mb-2">"Clear allergen labeling helped me!"</p>
-                      <p className="text-sm text-muted-foreground">Menu information you can trust</p>
+                  <Card className="border-0 bg-gradient-to-br from-blue-50 to-cyan-100 dark:from-blue-900/20 dark:to-cyan-900/20 shadow-lg">
+                    <CardContent className="p-4 sm:p-6 text-center">
+                      <div className="flex items-center justify-center gap-2 mb-3">
+                        <Shield className="h-4 w-4 text-blue-600" />
+                        <Badge variant="secondary" className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white border-0">
+                          Allergen Info
+                        </Badge>
+                      </div>
+                      <p className="font-bold mb-2 text-base sm:text-lg text-blue-800 dark:text-blue-200">"Clear allergen labeling helped me!"</p>
+                      <div className="flex items-center justify-center gap-1">
+                        <p className="text-sm text-blue-700 dark:text-blue-300">Menu information you can trust</p>
+                        <CheckCircle className="h-3 w-3 text-green-500" />
+                      </div>
                     </CardContent>
                   </Card>
                 </CarouselItem>
               </CarouselContent>
-              <CarouselPrevious />
-              <CarouselNext />
+              <CarouselPrevious className="hidden sm:flex" data-testid="carousel-previous" />
+              <CarouselNext className="hidden sm:flex" data-testid="carousel-next" />
             </Carousel>
           </div>
         </div>
 
-        {/* FAQ Accordion */}
-        <div className="max-w-2xl mx-auto mb-8">
+        {/* FAQ Accordion - Mobile Optimized */}
+        <div className="max-w-2xl mx-auto mb-6 sm:mb-8">
           <Accordion type="single" collapsible>
-            <AccordionItem value="why-signin">
-              <AccordionTrigger className="text-left">
-                <div className="flex items-center gap-2">
-                  <Shield className="h-4 w-4" />
-                  Why do I need to sign in?
+            <AccordionItem value="why-signin" className="border border-violet-200 dark:border-violet-700 rounded-lg px-4 bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-950/50 dark:to-purple-950/50">
+              <AccordionTrigger className="text-left hover:no-underline" data-testid="faq-trigger">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="p-2 bg-gradient-to-br from-purple-400 to-violet-500 rounded-full">
+                    <Lock className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
+                  </div>
+                  <span className="text-sm sm:text-base font-semibold text-violet-800 dark:text-violet-200">
+                    Why do I need to sign in?
+                  </span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li>• Keeps reviews authentic and prevents fake ratings</li>
-                  <li>• Builds a trusted community of real students</li>
-                  <li>• You can sign out anytime - no spam, ever</li>
+              <AccordionContent className="pt-2">
+                <ul className="space-y-2 text-xs sm:text-sm">
+                  <li className="flex items-center gap-2 text-violet-700 dark:text-violet-300">
+                    <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />
+                    Keeps reviews authentic and prevents fake ratings
+                  </li>
+                  <li className="flex items-center gap-2 text-violet-700 dark:text-violet-300">
+                    <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />
+                    Builds a trusted community of real students
+                  </li>
+                  <li className="flex items-center gap-2 text-violet-700 dark:text-violet-300">
+                    <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />
+                    You can sign out anytime - no spam, ever
+                  </li>
                 </ul>
               </AccordionContent>
             </AccordionItem>
           </Accordion>
         </div>
 
-        {/* Bottom CTA */}
-        <div className="text-center">
-          <p className="text-muted-foreground mb-4">Join the campus food community</p>
-          <Button onClick={handleLogin} data-testid="button-login-bottom">
+        {/* Bottom CTA - Mobile Optimized */}
+        <div className="text-center bg-gradient-to-r from-indigo-100 via-purple-50 to-pink-100 dark:from-indigo-950/30 dark:via-purple-950/30 dark:to-pink-950/30 rounded-2xl p-6 sm:p-8 border border-purple-200 dark:border-purple-700">
+          <div className="flex justify-center mb-2">
+            <PartyPopper className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+          </div>
+          <p className="text-purple-700 dark:text-purple-300 mb-4 text-sm sm:text-base font-medium">
+            Join the campus food community
+          </p>
+          <Button 
+            onClick={handleLogin} 
+            data-testid="button-login-bottom"
+            size="lg"
+            className="px-6 sm:px-8 py-3 sm:py-4"
+          >
+            <Trophy className="h-4 w-4 mr-2" />
             Get Started
           </Button>
         </div>
