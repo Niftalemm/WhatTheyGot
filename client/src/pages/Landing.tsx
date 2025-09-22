@@ -137,26 +137,6 @@ export default function Landing() {
             <Carousel>
               <CarouselContent>
                 <CarouselItem>
-                  <Card className="border-0 bg-gradient-to-br from-pink-50 to-rose-100 dark:from-pink-900/20 dark:to-rose-900/20 shadow-lg">
-                    <CardContent className="p-4 sm:p-6 text-center">
-                      <div className="flex justify-center mb-3">
-                        <div className="flex bg-yellow-100 dark:bg-yellow-900/30 rounded-full p-2">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <Star key={star} className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500 fill-current" />
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-center gap-2 mb-2">
-                        <p className="font-bold text-base sm:text-lg text-pink-800 dark:text-pink-200">"Best pasta on campus!"</p>
-                        <Utensils className="h-4 w-4 text-pink-600" />
-                      </div>
-                      <Badge variant="secondary" className="bg-pink-200 text-pink-800 dark:bg-pink-800 dark:text-pink-200">
-                        Dining Hall • Italian Station
-                      </Badge>
-                    </CardContent>
-                  </Card>
-                </CarouselItem>
-                <CarouselItem>
                   <Card className="border-0 bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/20 shadow-lg">
                     <CardContent className="p-4 sm:p-6 text-center">
                       <div className="flex justify-center mb-3">
