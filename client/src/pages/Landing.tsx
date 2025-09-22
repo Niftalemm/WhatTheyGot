@@ -125,61 +125,6 @@ export default function Landing() {
           </Card>
         </div>
 
-        {/* Preview Carousel - Mobile Optimized */}
-        <div className="mb-8 sm:mb-12">
-          <div className="flex items-center justify-center gap-2 mb-4 sm:mb-6">
-            <MessageCircle className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-            <h2 className="text-xl sm:text-2xl font-bold text-center bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400 bg-clip-text text-transparent">
-              See what students are saying
-            </h2>
-          </div>
-          <div className="max-w-2xl mx-auto">
-            <Carousel>
-              <CarouselContent>
-                <CarouselItem>
-                  <Card className="border-0 bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/20 shadow-lg">
-                    <CardContent className="p-4 sm:p-6 text-center">
-                      <div className="flex justify-center mb-3">
-                        <div className="flex bg-yellow-100 dark:bg-yellow-900/30 rounded-full p-2">
-                          {[1, 2, 3, 4].map((star) => (
-                            <Star key={star} className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500 fill-current" />
-                          ))}
-                          <Star className="h-4 w-4 sm:h-5 sm:w-5 text-gray-300" />
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-center gap-2 mb-2">
-                        <p className="font-bold text-base sm:text-lg text-emerald-800 dark:text-emerald-200">"Great salad bar options"</p>
-                        <Star className="h-4 w-4 text-emerald-600" />
-                      </div>
-                      <Badge variant="secondary" className="bg-emerald-200 text-emerald-800 dark:bg-emerald-800 dark:text-emerald-200">
-                        Student Union • Fresh Market
-                      </Badge>
-                    </CardContent>
-                  </Card>
-                </CarouselItem>
-                <CarouselItem>
-                  <Card className="border-0 bg-gradient-to-br from-blue-50 to-cyan-100 dark:from-blue-900/20 dark:to-cyan-900/20 shadow-lg">
-                    <CardContent className="p-4 sm:p-6 text-center">
-                      <div className="flex items-center justify-center gap-2 mb-3">
-                        <Shield className="h-4 w-4 text-blue-600" />
-                        <Badge variant="secondary" className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white border-0">
-                          Allergen Info
-                        </Badge>
-                      </div>
-                      <p className="font-bold mb-2 text-base sm:text-lg text-blue-800 dark:text-blue-200">"Clear allergen labeling helped me!"</p>
-                      <div className="flex items-center justify-center gap-1">
-                        <p className="text-sm text-blue-700 dark:text-blue-300">Menu information you can trust</p>
-                        <CheckCircle className="h-3 w-3 text-green-500" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </CarouselItem>
-              </CarouselContent>
-              <CarouselPrevious className="hidden sm:flex" data-testid="carousel-previous" />
-              <CarouselNext className="hidden sm:flex" data-testid="carousel-next" />
-            </Carousel>
-          </div>
-        </div>
 
         {/* FAQ Accordion - Mobile Optimized */}
         <div className="max-w-2xl mx-auto mb-6 sm:mb-8">
