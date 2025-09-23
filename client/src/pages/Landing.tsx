@@ -1,13 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useState } from "react";
 import { SiGoogle, SiApple } from "react-icons/si";
-import { Github, Mail, Sparkles, ArrowRight, Info } from "lucide-react";
+import { Github, Mail, Sparkles, ArrowRight, Info, X } from "lucide-react";
 
 export default function Landing() {
   const [email, setEmail] = useState("");
   const [showAccessPanel, setShowAccessPanel] = useState(false);
+  const [showLearnMoreModal, setShowLearnMoreModal] = useState(false);
 
   const handleLogin = () => {
     window.location.href = "/api/login";
@@ -18,8 +20,12 @@ export default function Landing() {
   };
 
   const handleLearnMore = () => {
-    // Scroll to learn more section or show info
+    setShowLearnMoreModal(true);
     setShowAccessPanel(false);
+  };
+
+  const handleCloseModal = () => {
+    setShowLearnMoreModal(false);
   };
 
   const handleEmailContinue = () => {
@@ -196,6 +202,43 @@ export default function Landing() {
         {/* Bottom Fade */}
         <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#0B0B0C] to-transparent pointer-events-none"></div>
       </div>
+
+      {/* Learn More Modal */}
+      <Dialog open={showLearnMoreModal} onOpenChange={setShowLearnMoreModal}>
+        <DialogContent className="max-w-md mx-auto bg-[#0F0F10] border border-[#6EE7B7]/30 shadow-2xl shadow-[#6EE7B7]/20 text-[#F5F5F5]">
+          <DialogHeader className="text-center space-y-4">
+            <DialogTitle className="text-2xl font-bold text-[#F5F5F5] flex items-center justify-center gap-2">
+              <Sparkles className="h-6 w-6 text-[#6EE7B7]" />
+              Why this exists
+            </DialogTitle>
+            <DialogDescription className="text-[#A1A1AA] text-base leading-relaxed px-2">
+              I got tired of playing "guess the mystery meat." So I built a quick feed to see what the DC's serving today — and whether it's bussin' or busted. Drop a review, save a stomach.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-6">
+            <Button
+              onClick={handleCloseModal}
+              className="flex-1 h-12 bg-[#6EE7B7] text-[#0B0B0C] hover:bg-[#5FD4A8] font-semibold transition-all duration-300 transform hover:scale-105"
+              data-testid="button-got-it"
+            >
+              Got it
+            </Button>
+            <Button
+              onClick={() => {
+                handleCloseModal();
+                // Small delay then show access panel
+                setTimeout(() => setShowAccessPanel(true), 200);
+              }}
+              variant="outline"
+              className="flex-1 h-12 border-[#6EE7B7] text-[#6EE7B7] hover:bg-[#6EE7B7] hover:text-[#0B0B0C] transition-all duration-300 transform hover:scale-105"
+              data-testid="button-start-scrolling"
+            >
+              Start scrolling
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
