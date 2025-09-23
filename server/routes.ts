@@ -150,26 +150,22 @@ function requireAdmin(req: AdminRequest, res: any, next: any) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Set up simple authentication
-  const { setupSimpleAuth, requireAuth } = await import('./simpleAuth');
-  setupSimpleAuth(app);
+  // Set up Replit authentication with OAuth providers
+  const { setupAuth, isAuthenticated } = await import('./replitAuth');
+  await setupAuth(app);
   
   // Set up email service
   const { sendVerificationCode } = await import('./sendgrid');
 
-  // Simple auth endpoints
-  app.get('/api/auth/user', async (req: any, res) => {
+  // Replit Auth user endpoint
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      if (req.session?.userId) {
-        const user = await storage.getUser(req.session.userId);
-        if (user) {
-          return res.json(user);
-        }
-      }
-      res.json(null);
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
     } catch (error) {
-      console.error('Error fetching user:', error);
-      res.json(null);
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
     }
   });
 
