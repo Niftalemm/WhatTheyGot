@@ -1,183 +1,200 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { Star, Utensils, Calendar, Shield, Github, Mail, Rocket, Sparkles, PartyPopper, MessageCircle, Lock, CheckCircle, Trophy } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { useState } from "react";
 import { SiGoogle, SiApple } from "react-icons/si";
+import { Github, Mail, Sparkles, ArrowRight, Info } from "lucide-react";
 
 export default function Landing() {
+  const [email, setEmail] = useState("");
+  const [showAccessPanel, setShowAccessPanel] = useState(false);
+
   const handleLogin = () => {
     window.location.href = "/api/login";
   };
 
+  const handleEnterApp = () => {
+    setShowAccessPanel(true);
+  };
+
+  const handleLearnMore = () => {
+    // Scroll to learn more section or show info
+    setShowAccessPanel(false);
+  };
+
+  const handleEmailContinue = () => {
+    // For now, redirect to main login which handles all providers
+    handleLogin();
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-blue-50 to-cyan-50 dark:from-violet-950 dark:via-blue-950 dark:to-cyan-950">
-      <div className="container mx-auto px-4 py-6 sm:py-8">
-        {/* Hero Section with Background */}
-        <div className="relative mb-8 sm:mb-12">
-          <AspectRatio ratio={4 / 3} className="sm:aspect-[16/9] overflow-hidden rounded-2xl shadow-2xl">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-600/80 via-blue-600/70 to-teal-600/80 z-10" />
-            <img 
-              src="/attached_assets/generated_images/University_lunch_spread_hero_3f701dd6.png"
-              alt="Campus dining spread"
-              className="absolute inset-0 w-full h-full object-cover"
-            />
-            <div className="relative z-20 flex flex-col justify-center items-center text-center h-full text-white p-4 sm:p-8">
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-white/20">
-                <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-2 sm:mb-4 bg-gradient-to-r from-white to-cyan-200 bg-clip-text text-transparent">
-                  Campus Menu Reviews
-                </h1>
-                <div className="flex items-center justify-center gap-2 mb-4 sm:mb-6">
-                  <Utensils className="h-5 w-5 text-cyan-200" />
-                  <p className="text-base sm:text-lg md:text-xl max-w-lg text-cyan-100">
-                    Real students, real reviews. Find the best campus eats!
+    <div className="min-h-screen bg-gradient-to-br from-[#0B0B0C] via-[#0F0F10] to-[#0B0B0C] relative overflow-hidden">
+      {/* Animated background gradient */}
+      <div className="absolute inset-0 opacity-30">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#6EE7B7] rounded-full mix-blend-multiply filter blur-3xl animate-pulse"></div>
+        <div className="absolute top-3/4 right-1/4 w-96 h-96 bg-[#6EE7B7] rounded-full mix-blend-multiply filter blur-3xl animate-pulse animation-delay-2000"></div>
+        <div className="absolute bottom-1/4 left-1/2 w-96 h-96 bg-[#6EE7B7] rounded-full mix-blend-multiply filter blur-3xl animate-pulse animation-delay-4000"></div>
+      </div>
+
+      {/* Floating particles effect */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {[...Array(20)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute w-1 h-1 bg-[#6EE7B7] rounded-full opacity-20 animate-float"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 10}s`,
+              animationDuration: `${15 + Math.random() * 10}s`
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 py-8">
+        {/* Hero Section */}
+        <div className="text-center mb-12 max-w-4xl mx-auto">
+          {/* App Name with Gradient */}
+          <h1 className="text-4xl md:text-7xl lg:text-8xl font-bold mb-6 bg-gradient-to-r from-[#F5F5F5] via-[#6EE7B7] to-[#F5F5F5] bg-clip-text text-transparent leading-tight">
+            What They Got?
+          </h1>
+          
+          {/* Tagline */}
+          <p className="text-xl md:text-2xl lg:text-3xl text-[#A1A1AA] mb-12 font-medium">
+            See what's bussin' at the DC today.
+          </p>
+
+          {/* Main Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
+            <Button
+              onClick={handleEnterApp}
+              size="lg"
+              className="px-8 py-4 text-lg font-semibold bg-[#6EE7B7] text-[#0B0B0C] hover:bg-[#5FD4A8] hover:shadow-lg hover:shadow-[#6EE7B7]/20 transition-all duration-300 transform hover:scale-105 min-w-[160px]"
+              data-testid="button-enter-app"
+            >
+              Enter App
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+            
+            <Button
+              onClick={handleLearnMore}
+              variant="outline"
+              size="lg"
+              className="px-8 py-4 text-lg font-semibold border-[#6EE7B7] text-[#6EE7B7] hover:bg-[#6EE7B7] hover:text-[#0B0B0C] transition-all duration-300 transform hover:scale-105 min-w-[160px]"
+              data-testid="button-learn-more"
+            >
+              <Info className="mr-2 h-5 w-5" />
+              Learn More
+            </Button>
+          </div>
+        </div>
+
+        {/* Login/Access Panel */}
+        <div className={`transition-all duration-500 transform ${showAccessPanel ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0 pointer-events-none'}`}>
+          <Card className="w-full max-w-md mx-auto bg-[#0F0F10]/80 backdrop-blur-sm border border-[#6EE7B7]/30 shadow-lg shadow-[#6EE7B7]/10 hover:shadow-[#6EE7B7]/20 transition-all duration-300 hover:scale-105">
+            <CardContent className="p-8">
+              {/* Email Input */}
+              <div className="space-y-6">
+                <div className="text-center mb-6">
+                  <h3 className="text-xl font-semibold text-[#F5F5F5] mb-2">
+                    Get Started
+                  </h3>
+                  <p className="text-sm text-[#A1A1AA]">
+                    Sign in with your preferred method
                   </p>
-                  <Star className="h-5 w-5 text-yellow-300" />
                 </div>
-                
-                {/* Main CTA */}
-                <div className="space-y-3 sm:space-y-4">
-                  <Button 
+
+                {/* OAuth Provider Buttons */}
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
                     onClick={handleLogin}
-                    size="lg"
-                    className="px-6 sm:px-8 py-4 sm:py-6 text-base sm:text-lg font-medium"
-                    data-testid="button-login"
+                    variant="ghost"
+                    className="h-12 border border-[#F5F5F5]/20 text-[#F5F5F5] hover:border-[#6EE7B7] hover:bg-[#6EE7B7]/10 transition-all duration-300"
+                    data-testid="button-login-google"
                   >
-                    <Rocket className="h-4 w-4 mr-2" />
-                    Sign in to start rating
+                    <SiGoogle className="h-5 w-5 text-[#EA4335]" />
                   </Button>
-                  <div className="flex items-center justify-center gap-1">
-                    <Sparkles className="h-3 w-3 text-white/90" />
-                    <p className="text-xs sm:text-sm text-white/90 font-medium">
-                      We use accounts to keep reviews real
+                  
+                  <Button
+                    onClick={handleLogin}
+                    variant="ghost"
+                    className="h-12 border border-[#F5F5F5]/20 text-[#F5F5F5] hover:border-[#6EE7B7] hover:bg-[#6EE7B7]/10 transition-all duration-300"
+                    data-testid="button-login-apple"
+                  >
+                    <SiApple className="h-5 w-5 text-[#F5F5F5]" />
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    onClick={handleLogin}
+                    variant="ghost"
+                    className="h-12 border border-[#F5F5F5]/20 text-[#F5F5F5] hover:border-[#6EE7B7] hover:bg-[#6EE7B7]/10 transition-all duration-300"
+                    data-testid="button-login-github"
+                  >
+                    <Github className="h-5 w-5" />
+                  </Button>
+                  
+                  <Button
+                    onClick={handleLogin}
+                    variant="ghost"
+                    className="h-12 border border-[#F5F5F5]/20 text-[#F5F5F5] hover:border-[#6EE7B7] hover:bg-[#6EE7B7]/10 transition-all duration-300"
+                    data-testid="button-login-email"
+                  >
+                    <Mail className="h-5 w-5" />
+                  </Button>
+                </div>
+
+                {/* Divider */}
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-[#F5F5F5]/20"></div>
+                  </div>
+                  <div className="relative flex justify-center text-xs">
+                    <span className="px-2 text-[#A1A1AA] bg-[#0F0F10]">or continue with email</span>
+                  </div>
+                </div>
+
+                {/* Email Input */}
+                <div className="space-y-4">
+                  <Input
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="h-12 bg-[#0B0B0C]/50 border-[#F5F5F5]/20 text-[#F5F5F5] placeholder:text-[#A1A1AA] focus:border-[#6EE7B7] focus:ring-1 focus:ring-[#6EE7B7] transition-all duration-300"
+                    data-testid="input-email"
+                  />
+                  
+                  <Button
+                    onClick={handleEmailContinue}
+                    className="w-full h-12 bg-[#6EE7B7] text-[#0B0B0C] hover:bg-[#5FD4A8] font-semibold transition-all duration-300 transform hover:scale-105"
+                    data-testid="button-continue"
+                  >
+                    Continue
+                  </Button>
+                </div>
+
+                {/* Subtext */}
+                <div className="text-center pt-4 border-t border-[#F5F5F5]/10">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <Sparkles className="h-4 w-4 text-[#6EE7B7]" />
+                    <p className="text-xs text-[#A1A1AA]">
+                      Unofficial student project
                     </p>
                   </div>
-                  
-                  {/* Provider Chips - Mobile Optimized */}
-                  <div className="flex items-center justify-center gap-2 sm:gap-3 mt-4">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={handleLogin}
-                      className="text-white/90 border border-white/30 rounded-full p-2 sm:p-3"
-                      data-testid="button-login-google"
-                    >
-                      <SiGoogle className="h-4 w-4 sm:h-5 sm:w-5 text-red-300" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={handleLogin}
-                      className="text-white/90 border border-white/30 rounded-full p-2 sm:p-3"
-                      data-testid="button-login-github"
-                    >
-                      <Github className="h-4 w-4 sm:h-5 sm:w-5 text-gray-300" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={handleLogin}
-                      className="text-white/90 border border-white/30 rounded-full p-2 sm:p-3"
-                      data-testid="button-login-apple"
-                    >
-                      <SiApple className="h-4 w-4 sm:h-5 sm:w-5 text-gray-200" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={handleLogin}
-                      className="text-white/90 border border-white/30 rounded-full p-2 sm:p-3"
-                      data-testid="button-login-email"
-                    >
-                      <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-blue-200" />
-                    </Button>
-                  </div>
+                  <p className="text-xs text-[#A1A1AA]">
+                    No school login required
+                  </p>
                 </div>
               </div>
-            </div>
-          </AspectRatio>
-        </div>
-
-        {/* Benefits Strip - Mobile First */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-8 sm:mb-12">
-          <Card className="text-center border-0 bg-gradient-to-br from-yellow-100 to-orange-100 dark:from-yellow-900/30 dark:to-orange-900/30 hover:shadow-lg transition-all duration-200 p-4 sm:p-6">
-            <div className="p-3 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 flex items-center justify-center">
-              <Star className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
-            </div>
-            <h3 className="font-bold mb-2 text-base sm:text-lg text-orange-800 dark:text-orange-200">Rate & Discover</h3>
-            <p className="text-sm text-orange-700 dark:text-orange-300">Find hidden gems and avoid disappointments</p>
-          </Card>
-          <Card className="text-center border-0 bg-gradient-to-br from-green-100 to-emerald-100 dark:from-green-900/30 dark:to-emerald-900/30 hover:shadow-lg transition-all duration-200 p-4 sm:p-6">
-            <div className="p-3 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 flex items-center justify-center">
-              <Utensils className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
-            </div>
-            <h3 className="font-bold mb-2 text-base sm:text-lg text-emerald-800 dark:text-emerald-200">Authentic Reviews</h3>
-            <p className="text-sm text-emerald-700 dark:text-emerald-300">Real students sharing honest food experiences</p>
-          </Card>
-          <Card className="text-center border-0 bg-gradient-to-br from-blue-100 to-cyan-100 dark:from-blue-900/30 dark:to-cyan-900/30 hover:shadow-lg transition-all duration-200 p-4 sm:p-6">
-            <div className="p-3 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-full w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 flex items-center justify-center">
-              <Calendar className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
-            </div>
-            <h3 className="font-bold mb-2 text-base sm:text-lg text-cyan-800 dark:text-cyan-200">Daily Menus</h3>
-            <p className="text-sm text-cyan-700 dark:text-cyan-300">Check what's cooking before you go</p>
+            </CardContent>
           </Card>
         </div>
 
-
-        {/* FAQ Accordion - Mobile Optimized */}
-        <div className="max-w-2xl mx-auto mb-6 sm:mb-8">
-          <Accordion type="single" collapsible>
-            <AccordionItem value="why-signin" className="border border-violet-200 dark:border-violet-700 rounded-lg px-4 bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-950/50 dark:to-purple-950/50">
-              <AccordionTrigger className="text-left hover:no-underline" data-testid="faq-trigger">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="p-2 bg-gradient-to-br from-purple-400 to-violet-500 rounded-full">
-                    <Lock className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
-                  </div>
-                  <span className="text-sm sm:text-base font-semibold text-violet-800 dark:text-violet-200">
-                    Why do I need to sign in?
-                  </span>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="pt-2">
-                <ul className="space-y-2 text-xs sm:text-sm">
-                  <li className="flex items-center gap-2 text-violet-700 dark:text-violet-300">
-                    <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />
-                    Keeps reviews authentic and prevents fake ratings
-                  </li>
-                  <li className="flex items-center gap-2 text-violet-700 dark:text-violet-300">
-                    <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />
-                    Builds a trusted community of real students
-                  </li>
-                  <li className="flex items-center gap-2 text-violet-700 dark:text-violet-300">
-                    <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />
-                    You can sign out anytime - no spam, ever
-                  </li>
-                </ul>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </div>
-
-        {/* Bottom CTA - Mobile Optimized */}
-        <div className="text-center bg-gradient-to-r from-indigo-100 via-purple-50 to-pink-100 dark:from-indigo-950/30 dark:via-purple-950/30 dark:to-pink-950/30 rounded-2xl p-6 sm:p-8 border border-purple-200 dark:border-purple-700">
-          <div className="flex justify-center mb-2">
-            <PartyPopper className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-          </div>
-          <p className="text-purple-700 dark:text-purple-300 mb-4 text-sm sm:text-base font-medium">
-            Join the campus food community
-          </p>
-          <Button 
-            onClick={handleLogin} 
-            data-testid="button-login-bottom"
-            size="lg"
-            className="px-6 sm:px-8 py-3 sm:py-4"
-          >
-            <Trophy className="h-4 w-4 mr-2" />
-            Get Started
-          </Button>
-        </div>
+        {/* Bottom Fade */}
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#0B0B0C] to-transparent pointer-events-none"></div>
       </div>
     </div>
   );

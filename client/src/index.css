@@ -2,47 +2,47 @@
 @tailwind components;
 @tailwind utilities;
 
-/* LIGHT MODE */
+/* DARK MODE - Black & Mint Theme */
 :root {
-  --button-outline: rgba(0,0,0, .10);
-  --badge-outline: rgba(0,0,0, .05);
+  --button-outline: rgba(110,231,183, .20);
+  --badge-outline: rgba(110,231,183, .15);
 
   /* Automatic computation of border around primary / danger buttons */
-  --opaque-button-border-intensity: -8; /* In terms of percentages */
+  --opaque-button-border-intensity: 8; /* In terms of percentages */
 
   /* Backgrounds applied on top of other backgrounds when hovered/active */
-  --elevate-1: rgba(0,0,0, .03);
-  --elevate-2: rgba(0,0,0, .08);
+  --elevate-1: rgba(110,231,183, .05);
+  --elevate-2: rgba(110,231,183, .12);
 
-  --background: 0 0% 97%;
-  --foreground: 0 0% 12%;
-  --border: 0 0% 88%;
-  --card: 0 0% 95%;
-  --card-foreground: 0 0% 15%;
-  --card-border: 0 0% 90%;
-  --sidebar: 0 0% 92%;
-  --sidebar-foreground: 0 0% 18%;
-  --sidebar-border: 0 0% 87%;
-  --sidebar-primary: 162 88% 40%;
-  --sidebar-primary-foreground: 162 88% 95%;
-  --sidebar-accent: 162 20% 85%;
-  --sidebar-accent-foreground: 162 88% 25%;
-  --sidebar-ring: 162 88% 50%;
-  --popover: 0 0% 90%;
-  --popover-foreground: 0 0% 20%;
-  --popover-border: 0 0% 85%;
-  --primary: 162 88% 40%;
-  --primary-foreground: 162 88% 95%;
-  --secondary: 0 0% 85%;
-  --secondary-foreground: 0 0% 25%;
-  --muted: 0 0% 88%;
-  --muted-foreground: 0 0% 45%;
-  --accent: 162 20% 85%;
-  --accent-foreground: 162 88% 25%;
-  --destructive: 0 84% 45%;
-  --destructive-foreground: 0 84% 95%;
-  --input: 0 0% 75%;
-  --ring: 162 88% 50%;
+  --background: 218 11% 3%; /* Pure black/charcoal #0B0B0C */
+  --foreground: 0 0% 96%; /* Soft white #F5F5F5 */
+  --border: 0 0% 20%;
+  --card: 218 11% 5%; /* Slightly lighter than background */
+  --card-foreground: 0 0% 96%;
+  --card-border: 162 88% 70%; /* Mint border glow */
+  --sidebar: 218 11% 4%;
+  --sidebar-foreground: 0 0% 94%;
+  --sidebar-border: 0 0% 15%;
+  --sidebar-primary: 162 88% 70%; /* Mint green #6EE7B7 */
+  --sidebar-primary-foreground: 218 11% 5%;
+  --sidebar-accent: 162 20% 15%;
+  --sidebar-accent-foreground: 162 88% 70%;
+  --sidebar-ring: 162 88% 70%;
+  --popover: 218 11% 5%;
+  --popover-foreground: 0 0% 94%;
+  --popover-border: 0 0% 15%;
+  --primary: 162 88% 70%; /* Fresh mint green #6EE7B7 */
+  --primary-foreground: 218 11% 5%;
+  --secondary: 0 0% 15%;
+  --secondary-foreground: 0 0% 66%; /* Muted gray #A1A1AA */
+  --muted: 0 0% 15%;
+  --muted-foreground: 0 0% 66%; /* Muted gray #A1A1AA */
+  --accent: 162 88% 70%; /* Mint green */
+  --accent-foreground: 218 11% 5%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --input: 0 0% 20%;
+  --ring: 162 88% 70%;
   --chart-1: 162 88% 35%;
   --chart-2: 142 76% 40%;
   --chart-3: 38 92% 40%;
@@ -270,4 +270,36 @@
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
+}
+
+/* Custom animations for the landing page */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px) rotate(0deg);
+    opacity: 0.2;
+  }
+  25% {
+    transform: translateY(-20px) translateX(10px) rotate(90deg);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translateY(-40px) translateX(-15px) rotate(180deg);
+    opacity: 0.6;
+  }
+  75% {
+    transform: translateY(-20px) translateX(5px) rotate(270deg);
+    opacity: 0.3;
+  }
+}
+
+.animate-float {
+  animation: float linear infinite;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
 }
