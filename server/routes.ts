@@ -387,6 +387,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/reviews/recent", async (req, res) => {
     try {
+      // Disable caching for recent reviews to ensure fresh data
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
       const reviews = await storage.getRecentReviews(limit);
       res.json(reviews);

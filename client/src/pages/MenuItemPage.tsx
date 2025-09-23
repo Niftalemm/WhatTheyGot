@@ -68,6 +68,7 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/reviews', itemId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/reviews/recent'] });
       toast({
         title: "Review submitted!",
         description: "Thank you for your feedback.",
@@ -98,6 +99,7 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/reviews', itemId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/reviews/recent'] });
       toast({
         title: "Report submitted",
         description: "Thank you for reporting this review. It has been hidden and will be reviewed by moderators.",
