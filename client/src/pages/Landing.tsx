@@ -190,8 +190,11 @@ export default function Landing() {
                       Unofficial student project
                     </p>
                   </div>
-                  <p className="text-xs text-[#A1A1AA]">
+                  <p className="text-xs text-[#A1A1AA] mb-2">
                     No school login required
+                  </p>
+                  <p className="text-xs text-[#A1A1AA] leading-relaxed">
+                    🔒 Logging in is only used to protect and help students. Your info will not be shared with other people.
                   </p>
                 </div>
               </div>
