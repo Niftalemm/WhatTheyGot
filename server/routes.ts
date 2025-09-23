@@ -330,6 +330,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Menu Items Routes
   app.get("/api/menu/:date", async (req, res) => {
     try {
+      // Disable caching for menu items to ensure fresh data with updated ratings
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      
       const { date } = req.params;
       const { meal, current } = req.query;
       
