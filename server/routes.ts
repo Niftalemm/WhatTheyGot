@@ -51,7 +51,7 @@ interface UserRequest extends Request {
     id: string;
     email: string;
     displayName: string;
-  } | User;
+  };
 }
 
 function generateDeviceId(req: any): string {
@@ -639,6 +639,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertUserSchema.parse(req.body);
       
       // Check if user already exists
+      if (!validatedData.email) {
+        return res.status(400).json({ error: "Email is required for signup" });
+      }
       const existingUser = await storage.getUserByEmail(validatedData.email);
       if (existingUser) {
         return res.status(409).json({ error: "An account with this email already exists" });
@@ -736,7 +739,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User profile routes
-  app.get("/api/auth/profile", requireUser, async (req: UserRequest, res: Response) => {
+  app.get("/api/auth/profile", requireUser, async (req: any, res: Response) => {
     try {
       const user = await storage.getUserById(req.user!.id);
       if (!user) {
@@ -763,7 +766,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/auth/profile", requireUser, async (req: UserRequest, res: Response) => {
+  app.put("/api/auth/profile", requireUser, async (req: any, res: Response) => {
     try {
       const { displayName, bio } = req.body;
       
@@ -836,7 +839,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Review reports route (for authenticated users when auth is implemented)
-  app.post("/api/reviews/:reviewId/report", requireUser, async (req: UserRequest, res) => {
+  app.post("/api/reviews/:reviewId/report", requireUser, async (req: any, res) => {
     try {
       const { reviewId } = req.params;
       const { reason } = req.body;
