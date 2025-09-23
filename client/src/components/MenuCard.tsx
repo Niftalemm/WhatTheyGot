@@ -82,14 +82,21 @@ export default function MenuCard({
               {station}
             </p>
           </div>
-          <div className="flex items-center gap-1">
-            <Star className="w-4 h-4 fill-primary text-primary" />
-            <span className="font-medium" data-testid={`text-rating-${id}`}>
-              {rating.toFixed(1)}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              ({reviewCount})
-            </span>
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-1">
+              <Star className="w-4 h-4 fill-primary text-primary" />
+              <span className="font-medium" data-testid={`text-rating-${id}`}>
+                {rating.toFixed(1)}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                ({reviewCount} {reviewCount === 1 ? 'review' : 'reviews'})
+              </span>
+            </div>
+            {reviewCount > 0 && (
+              <span className="text-xs text-muted-foreground">
+                Press to see reviews
+              </span>
+            )}
           </div>
         </div>
       </CardHeader>
