@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueries } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import AppBanner from "@/components/AppBanner";
 import AdminMessages from "@/components/AdminMessages";
@@ -95,10 +95,14 @@ export default function MenuPage() {
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
 
-  // Fetch recent reviews for rating calculations
-  const { data: recentReviews = [] } = useQuery<(Review & { menuItem: MenuItem })[]>({
-    queryKey: ['/api/reviews/recent'],
-    queryFn: () => fetch('/api/reviews/recent').then(res => res.json()),
+  // Fetch reviews for each menu item individually (only after menu items are loaded)
+  const reviewQueries = useQueries({
+    queries: menuItems.length ? menuItems.map(item => ({
+      queryKey: ['/api/reviews', item.id],
+      queryFn: () => fetch(`/api/reviews/${item.id}`).then(res => res.json()),
+      enabled: !!item.id,
+      placeholderData: [],
+    })) : [],
   });
 
   // Group menu items by meal period and filter by active station
@@ -106,7 +110,10 @@ export default function MenuPage() {
     .filter(item => activeStation === 'All' || item.station === activeStation)
     .reduce((acc, item) => {
       if (!acc[item.mealPeriod]) acc[item.mealPeriod] = [];
-      acc[item.mealPeriod].push(transformMenuItem(item, recentReviews));
+      // Find the corresponding reviews for this item
+      const itemIndex = menuItems.findIndex(mi => mi.id === item.id);
+      const itemReviews = reviewQueries[itemIndex]?.data || [];
+      acc[item.mealPeriod].push(transformMenuItem(item, itemReviews));
       return acc;
     }, {} as Record<string, any[]>);
 
@@ -127,10 +134,10 @@ export default function MenuPage() {
       const response = await apiRequest('POST', '/api/reviews', reviewData);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       toast({ title: "Review submitted!", description: "Thank you for your feedback." });
-      // Invalidate both reviews and menu queries to update ratings
-      queryClient.invalidateQueries({ queryKey: ['/api/reviews/recent'] });
+      // Invalidate the specific item's reviews and menu queries to update ratings
+      queryClient.invalidateQueries({ queryKey: ['/api/reviews', variables.menuItemId] });
       queryClient.invalidateQueries({ queryKey: ['/api/menu', today] });
       setReviewModal({ isOpen: false, itemName: '', itemId: '' });
     },

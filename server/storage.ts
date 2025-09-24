@@ -282,28 +282,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRecentReviews(limit = 20): Promise<(Review & { menuItem: MenuItem; user?: User })[]> {
-    const results = await db
-      .select({
-        id: reviews.id,
-        menuItemId: reviews.menuItemId,
-        userId: reviews.userId,
-        rating: reviews.rating,
-        emoji: reviews.emoji,
-        text: reviews.text,
-        photoUrl: reviews.photoUrl,
-        deviceId: reviews.deviceId,
-        isHidden: reviews.isHidden,
-        isFlagged: reviews.isFlagged,
-        moderationStatus: reviews.moderationStatus,
-        moderationScores: reviews.moderationScores,
-        flaggedReason: reviews.flaggedReason,
-        createdAt: reviews.createdAt,
-        menuItem: menuItems,
-        user: users,
-      })
+    console.log('getRecentReviews called with limit:', limit);
+    
+    // First get the approved reviews
+    const reviewResults = await db
+      .select()
       .from(reviews)
-      .innerJoin(menuItems, eq(reviews.menuItemId, menuItems.id))
-      .leftJoin(users, eq(reviews.userId, users.id)) // Left join since not all reviews have users
       .where(
         and(
           eq(reviews.isHidden, false), // Only show non-hidden reviews
@@ -313,7 +297,35 @@ export class DatabaseStorage implements IStorage {
       )
       .orderBy(desc(reviews.createdAt))
       .limit(limit);
+
+    console.log('Raw review results count:', reviewResults.length);
+    console.log('First review:', reviewResults[0]);
+
+    // Then get related menu items and users
+    const results = [];
+    for (const review of reviewResults) {
+      const [menuItem] = await db
+        .select()
+        .from(menuItems)
+        .where(eq(menuItems.id, review.menuItemId));
       
+      let user = null;
+      if (review.userId) {
+        const [userResult] = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, review.userId));
+        user = userResult;
+      }
+
+      results.push({
+        ...review,
+        menuItem,
+        user,
+      });
+    }
+
+    console.log('Final results count:', results.length);
     return results as (Review & { menuItem: MenuItem; user?: User })[];
   }
 
