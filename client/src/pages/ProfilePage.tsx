@@ -22,7 +22,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { AlertTriangle } from "lucide-react";
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -35,6 +36,7 @@ export default function ProfilePage() {
   const [profileImage, setProfileImage] = useState<string | null>(
     localStorage.getItem('userProfileImage') || null
   );
+  const [isUsernameWarningOpen, setIsUsernameWarningOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleLogout = () => {
@@ -301,7 +303,7 @@ export default function ProfilePage() {
                       <Button 
                         size="sm" 
                         variant="ghost" 
-                        onClick={() => setIsEditingName(true)}
+                        onClick={() => setIsUsernameWarningOpen(true)}
                         data-testid="button-edit-username"
                       >
                         <Edit className="w-3 h-3" />
@@ -427,6 +429,38 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Username Warning Dialog */}
+      <Dialog open={isUsernameWarningOpen} onOpenChange={setIsUsernameWarningOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader className="text-left">
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-orange-500" />
+              Username Guidelines
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              Usernames must be appropriate. Inappropriate or offensive names may result in a ban.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsUsernameWarningOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                setIsUsernameWarningOpen(false);
+                setIsEditingName(true);
+              }}
+              data-testid="button-proceed-edit"
+            >
+              I Understand
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Image Upload Dialog */}
       <Dialog open={isImageUploadOpen} onOpenChange={setIsImageUploadOpen}>

@@ -886,7 +886,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get user ID from Replit Auth
       const userId = req.user.claims.sub;
       
-      // Parse displayName into firstName and lastName if provided
+      // Store displayName directly without parsing
       let updateData: any = { bio };
       if (displayName !== undefined) {
         // Validate username first
@@ -895,9 +895,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ error: validation.reason });
         }
         
-        const { firstName, lastName } = parseDisplayName(displayName);
-        updateData.firstName = firstName;
-        updateData.lastName = lastName;
+        updateData.displayName = displayName.trim();
       }
       
       // Update user profile
@@ -910,7 +908,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         user: {
           id: updatedUser!.id,
           email: updatedUser!.email,
-          displayName: computeDisplayName(updatedUser!.firstName, updatedUser!.lastName),
+          displayName: updatedUser!.displayName || computeDisplayName(updatedUser!.firstName, updatedUser!.lastName),
           bio: updatedUser!.bio,
           createdAt: updatedUser!.createdAt,
         },
