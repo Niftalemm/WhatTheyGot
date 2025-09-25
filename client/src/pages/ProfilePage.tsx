@@ -74,8 +74,8 @@ export default function ProfilePage() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('userToken')}`,
         },
+        credentials: 'include',
         body: JSON.stringify({
           displayName: username.trim()
         }),
@@ -114,8 +114,8 @@ export default function ProfilePage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('userToken')}`,
         },
+        credentials: 'include',
         body: JSON.stringify({
           message: feedback.trim()
         }),

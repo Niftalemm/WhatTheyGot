@@ -470,14 +470,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/reviews", async (req, res) => {
+  app.post("/api/reviews", async (req: any, res) => {
     try {
       const deviceId = generateDeviceId(req);
       const deviceIdHash = createDeviceHash(deviceId);
       
-      // Get authenticated user if available
+      // Get authenticated user if available (supporting both auth methods)
       let userId = null;
-      if ((req.session as any)?.userId) {
+      if (req.user?.claims?.sub) {
+        // Replit Auth user
+        userId = req.user.claims.sub;
+      } else if ((req.session as any)?.userId) {
+        // Simple auth user (fallback)
         userId = (req.session as any).userId;
       }
       
@@ -875,9 +879,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return { isValid: true };
   }
 
-  app.put("/api/auth/profile", requireUser, async (req: any, res: Response) => {
+  app.put("/api/auth/profile", isAuthenticated, async (req: any, res: Response) => {
     try {
       const { displayName, bio } = req.body;
+      
+      // Get user ID from Replit Auth
+      const userId = req.user.claims.sub;
       
       // Parse displayName into firstName and lastName if provided
       let updateData: any = { bio };
@@ -894,10 +901,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Update user profile
-      await storage.updateUser(req.user!.id, updateData);
+      await storage.updateUser(userId, updateData);
       
       // Fetch updated user
-      const updatedUser = await storage.getUserById(req.user!.id);
+      const updatedUser = await storage.getUserById(userId);
       
       res.json({
         user: {
@@ -916,7 +923,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Profile image upload endpoint
-  app.post("/api/auth/profile/image", requireUser, async (req: any, res: Response) => {
+  app.post("/api/auth/profile/image", isAuthenticated, async (req: any, res: Response) => {
     try {
       // TODO: For now, just acknowledge the request. 
       // In production, this would handle actual image upload to a service like AWS S3 or Replit Object Storage
@@ -931,7 +938,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User feedback submission endpoint  
-  app.post("/api/feedback", requireUser, async (req: any, res: Response) => {
+  app.post("/api/feedback", isAuthenticated, async (req: any, res: Response) => {
     try {
       const { message } = req.body;
       
@@ -943,9 +950,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Feedback message is too long (max 1000 characters)" });
       }
       
+      // Get user info from Replit Auth
+      const userEmail = req.user.claims.email || 'unknown';
+      const userDisplayName = req.user.claims.name || 'Anonymous User';
+      
       // TODO: Store feedback in database table for admin dashboard
       // For now, just log it
-      console.log(`User Feedback from ${req.user!.email} (${req.user!.displayName}): ${message.trim()}`);
+      console.log(`User Feedback from ${userEmail} (${userDisplayName}): ${message.trim()}`);
       
       res.json({
         message: "Thank you for your feedback! We'll review it shortly.",
