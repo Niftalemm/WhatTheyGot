@@ -241,11 +241,11 @@ export default function ProfilePage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full p-0 border-2 border-background"
+                  className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 h-8 w-8 rounded-full p-0 border-2 border-background bg-background shadow-sm"
                   onClick={handleImageUpload}
                   data-testid="button-upload-image"
                 >
-                  <Camera className="w-3 h-3" />
+                  <Camera className="w-4 h-4" />
                 </Button>
                 <input
                   ref={fileInputRef}
