@@ -45,7 +45,7 @@ export function AuthButton() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full" data-testid="button-user-menu">
           <Avatar className="h-8 w-8">
-            <AvatarImage src={(user as any)?.profileImageUrl} />
+            <AvatarImage src={localStorage.getItem('userProfileImage') || (user as any)?.profileImageUrl || ""} />
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
         </Button>
