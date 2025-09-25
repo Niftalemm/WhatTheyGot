@@ -45,6 +45,15 @@ export default function MenuCard({
   const { toast } = useToast();
 
   const handleStarClick = (starRating: number) => {
+    const mealStatus = checkMealPeriodStatus(mealPeriod);
+    if (!mealStatus.isOpen) {
+      toast({
+        title: "Rating not available",
+        description: mealStatus.nextOpening,
+        variant: "destructive",
+      });
+      return;
+    }
     setUserRating(starRating);
     onRate(id, starRating);
   };
@@ -175,27 +184,33 @@ export default function MenuCard({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
             <span className="text-sm font-medium">Quick rate:</span>
-            {[1, 2, 3, 4, 5].map((star) => (
-              <button
-                key={star}
-                className="p-1"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleStarClick(star);
-                }}
-                onMouseEnter={() => setHoveredStar(star)}
-                onMouseLeave={() => setHoveredStar(0)}
-                data-testid={`button-rate-${star}-${id}`}
-              >
-                <Star
-                  className={`w-4 h-4 transition-colors ${
-                    star <= (hoveredStar || userRating)
-                      ? "fill-primary text-primary"
-                      : "text-muted-foreground"
-                  }`}
-                />
-              </button>
-            ))}
+            {(() => {
+              // Compute meal status once per render
+              const mealStatus = checkMealPeriodStatus(mealPeriod);
+              const isDisabled = !mealStatus.isOpen;
+              
+              return [1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  className={`p-1 ${isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleStarClick(star);
+                  }}
+                  onMouseEnter={() => !isDisabled && setHoveredStar(star)}
+                  onMouseLeave={() => !isDisabled && setHoveredStar(0)}
+                  data-testid={`button-rate-${star}-${id}`}
+                >
+                  <Star
+                    className={`w-4 h-4 transition-colors ${
+                      !isDisabled && star <= (hoveredStar || userRating)
+                        ? "fill-primary text-primary"
+                        : "text-muted-foreground"
+                    }`}
+                  />
+                </button>
+              ));
+            })()}
           </div>
         </div>
 
