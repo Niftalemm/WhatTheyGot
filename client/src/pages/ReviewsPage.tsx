@@ -11,7 +11,7 @@ export default function ReviewsPage() {
   const today = new Date().toISOString().split('T')[0];
 
   // First fetch all menu items
-  const { data: menuItems = [] } = useQuery<MenuItem[]>({
+  const { data: menuItems = [], isLoading: isLoadingMenuItems } = useQuery<MenuItem[]>({
     queryKey: ['/api/menu', today],
     queryFn: () => fetch(`/api/menu/${today}`).then(res => res.json()),
   });
@@ -38,7 +38,7 @@ export default function ReviewsPage() {
     .flat()
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  const isLoading = reviewQueries.some(query => query.isLoading);
+  const isLoading = isLoadingMenuItems || reviewQueries.some(query => query.isLoading);
   const reviews = allReviews;
 
   return (
