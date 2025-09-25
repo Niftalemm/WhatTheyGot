@@ -64,6 +64,50 @@ const getImageForMealPeriod = (mealPeriod: string) => {
   }
 };
 
+// Helper function to determine if a meal period is expired/closed
+const isMealPeriodExpired = (mealPeriod: string): boolean => {
+  // Get current time in America/Chicago timezone
+  const now = new Date();
+  const chicagoTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Chicago" }));
+  const hour = chicagoTime.getHours() + chicagoTime.getMinutes() / 60;
+  const dayOfWeek = chicagoTime.getDay(); // 0 = Sunday, 1 = Monday, etc.
+  
+  // Operating hours (same as backend)
+  const operatingHours = {
+    breakfast: { end: 9.5 }, // Closes at 9:30 AM
+    lunch: { end: 14 }, // Closes at 2:00 PM
+    liteDinner: { end: 16 }, // Closes at 4:00 PM
+    dinner: { end: dayOfWeek === 5 ? 20 : 21 } // Closes at 9:00 PM (8 PM Friday)
+  };
+  
+  switch (mealPeriod) {
+    case 'breakfast':
+      return hour >= operatingHours.breakfast.end;
+    case 'lunch':
+      return hour >= operatingHours.lunch.end;
+    case 'dinner':
+    case 'liteDinner':
+      return hour >= operatingHours.dinner.end;
+    default:
+      return false;
+  }
+};
+
+// Helper function to get closed message for expired meal periods
+const getClosedMessage = (mealPeriod: string): string => {
+  switch (mealPeriod) {
+    case 'breakfast':
+      return "Sorry, breakfast service has ended for today";
+    case 'lunch':
+      return "Sorry, lunch service has ended for today";
+    case 'dinner':
+    case 'liteDinner':
+      return "Sorry, dinner service has ended for today";
+    default:
+      return "Service has ended for this meal period";
+  }
+};
+
 interface CalorieItem {
   id: string;
   name: string;
@@ -324,30 +368,74 @@ export default function MenuPage() {
         )}
 
         <MealPeriodTabs>
-          {Object.entries(menuItemsByMeal).map(([mealPeriod, items]) => (
-            <TabsContent key={mealPeriod} value={mealPeriod} className="mt-6">
-              <div className="space-y-4">
-                {items.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">No menu items available for {mealPeriod}</p>
-                  </div>
-                ) : (
-                  items.map((item) => (
-                    <ProtectedContent key={item.id} blurLevel="md">
-                      <MenuCard
-                        {...item}
-                        isInCalorieCounter={calorieItems.some(ci => ci.id === item.id)}
-                        onRate={handleRate}
-                        onReview={handleReview}
-                        onReport={handleReport}
-                        onAddToCalorieCounter={item.calories ? handleAddToCalorieCounter : undefined}
-                      />
-                    </ProtectedContent>
-                  ))
-                )}
-              </div>
-            </TabsContent>
-          ))}
+          {/* Show all meal periods: breakfast, lunch, dinner */}
+          {['breakfast', 'lunch', 'dinner'].map((mealPeriod) => {
+            const items = menuItemsByMeal[mealPeriod] || [];
+            const isExpired = isMealPeriodExpired(mealPeriod);
+            const hasNoItems = items.length === 0;
+            
+            return (
+              <TabsContent key={mealPeriod} value={mealPeriod} className="mt-6">
+                <div className="space-y-4">
+                  {hasNoItems ? (
+                    <div className="text-center py-12">
+                      {isExpired ? (
+                        <div className="max-w-md mx-auto">
+                          <div className="relative w-48 h-32 mx-auto mb-6 rounded-lg overflow-hidden">
+                            <img 
+                              src={getImageForMealPeriod(mealPeriod)} 
+                              alt={`${mealPeriod} closed`}
+                              className="w-full h-full object-cover opacity-60 filter grayscale"
+                            />
+                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                              <div className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold text-lg">
+                                CLOSED
+                              </div>
+                            </div>
+                          </div>
+                          <h3 className="text-xl font-semibold text-muted-foreground mb-2 capitalize">
+                            {mealPeriod} Service Ended
+                          </h3>
+                          <p className="text-muted-foreground">
+                            {getClosedMessage(mealPeriod)}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="max-w-md mx-auto">
+                          <div className="relative w-48 h-32 mx-auto mb-6 rounded-lg overflow-hidden">
+                            <img 
+                              src={getImageForMealPeriod(mealPeriod)} 
+                              alt={`${mealPeriod} preview`}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <h3 className="text-xl font-semibold mb-2 capitalize">
+                            {mealPeriod} Menu Coming Soon
+                          </h3>
+                          <p className="text-muted-foreground">
+                            Menu items will be available when {mealPeriod} service begins
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    items.map((item) => (
+                      <ProtectedContent key={item.id} blurLevel="md">
+                        <MenuCard
+                          {...item}
+                          isInCalorieCounter={calorieItems.some(ci => ci.id === item.id)}
+                          onRate={handleRate}
+                          onReview={handleReview}
+                          onReport={handleReport}
+                          onAddToCalorieCounter={item.calories ? handleAddToCalorieCounter : undefined}
+                        />
+                      </ProtectedContent>
+                    ))
+                  )}
+                </div>
+              </TabsContent>
+            );
+          })}
         </MealPeriodTabs>
 
         {Object.keys(menuItemsByMeal).length === 0 && (
