@@ -1,14 +1,22 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Star } from "lucide-react";
-import { useQuery, useQueries } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Star, Flag } from "lucide-react";
+import { useQuery, useQueries, useMutation } from "@tanstack/react-query";
+import { useState } from "react";
 import AdminMessages from "@/components/AdminMessages";
+import ReportReviewModal from "@/components/ReportReviewModal";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { MenuItem, Review } from "@shared/schema";
 
 export default function ReviewsPage() {
   const today = new Date().toISOString().split('T')[0];
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [selectedReviewId, setSelectedReviewId] = useState<string>("");
+  const { toast } = useToast();
 
   // First fetch all menu items
   const { data: menuItems = [], isLoading: isLoadingMenuItems } = useQuery<MenuItem[]>({
@@ -40,6 +48,43 @@ export default function ReviewsPage() {
 
   const isLoading = isLoadingMenuItems || reviewQueries.some(query => query.isLoading);
   const reviews = allReviews;
+
+  // Report review mutation
+  const reportMutation = useMutation({
+    mutationFn: (reportData: { reviewId: string; reason: string; details?: string }) =>
+      apiRequest('POST', '/api/review-reports', {
+        reviewId: reportData.reviewId,
+        reason: reportData.reason,
+        details: reportData.details,
+      }),
+    onSuccess: () => {
+      toast({
+        title: "Review reported",
+        description: "Thank you for your report. The review has been reported for moderation.",
+      });
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/reviews'] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to submit report. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleReportClick = (reviewId: string) => {
+    setSelectedReviewId(reviewId);
+    setReportModalOpen(true);
+  };
+
+  const handleReportSubmit = (reportData: { reason: string; details?: string }) => {
+    reportMutation.mutate({
+      reviewId: selectedReviewId,
+      ...reportData,
+    });
+  };
 
   return (
     <div className="pb-20">
@@ -77,25 +122,36 @@ export default function ReviewsPage() {
                   </Avatar>
                   
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium text-sm" data-testid={`text-reviewer-${review.id}`}>
-                        {review.user?.displayName || "Anonymous"}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-3 h-3 ${
-                              i < review.rating
-                                ? "fill-primary text-primary"
-                                : "text-muted-foreground"
-                            }`}
-                          />
-                        ))}
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm" data-testid={`text-reviewer-${review.id}`}>
+                          {review.user?.displayName || "Anonymous"}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-3 h-3 ${
+                                i < review.rating
+                                  ? "fill-primary text-primary"
+                                  : "text-muted-foreground"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        {review.emoji && (
+                          <span className="text-lg">{review.emoji}</span>
+                        )}
                       </div>
-                      {review.emoji && (
-                        <span className="text-lg">{review.emoji}</span>
-                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleReportClick(review.id)}
+                        data-testid={`button-report-${review.id}`}
+                      >
+                        <Flag className="h-3 w-3" />
+                      </Button>
                     </div>
                     
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -120,6 +176,13 @@ export default function ReviewsPage() {
           ))
         )}
       </div>
+      
+      <ReportReviewModal
+        isOpen={reportModalOpen}
+        onClose={() => setReportModalOpen(false)}
+        reviewId={selectedReviewId}
+        onSubmit={handleReportSubmit}
+      />
     </div>
   );
 }
