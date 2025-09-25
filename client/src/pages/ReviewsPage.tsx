@@ -98,7 +98,7 @@ export default function ReviewsPage() {
   return (
     <div className="pb-20">
       <div className="sticky top-0 bg-background/95 backdrop-blur-sm py-4 px-4 z-10 border-b border-border">
-        <h1 className="text-2xl font-bold" data-testid="text-reviews-title">
+        <h1 className="text-xl font-semibold" data-testid="text-reviews-title">
           Recent Reviews
         </h1>
         <p className="text-muted-foreground">
