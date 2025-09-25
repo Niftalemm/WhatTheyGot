@@ -125,7 +125,7 @@ export default function ReviewsPage() {
               <CardHeader className="pb-3">
                 <div className="flex items-start gap-3">
                   <Avatar className="w-10 h-10">
-                    {review.user?.id === user?.id && profileImage ? (
+                    {((review.user?.id === user?.id) || (review.userId === user?.id)) && profileImage ? (
                       <AvatarImage src={profileImage} alt={review.user?.displayName || "User"} />
                     ) : null}
                     <AvatarFallback className="text-sm font-medium">
