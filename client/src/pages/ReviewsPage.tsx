@@ -101,6 +101,9 @@ export default function ReviewsPage() {
         <h1 className="text-2xl font-bold" data-testid="text-reviews-title">
           Recent Reviews
         </h1>
+        <p className="text-muted-foreground">
+          See what students are saying
+        </p>
       </div>
       
       <div className="px-4">
