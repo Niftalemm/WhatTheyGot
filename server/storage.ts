@@ -55,11 +55,16 @@ export interface IStorage {
   verifyEmailCode(email: string, code: string): Promise<boolean>;
   cleanupExpiredCodes(): Promise<void>;
   
+  // Menu Item Cleanup
+  cleanupExpiredMenuItems(date: string): Promise<number>;
+  getExpiredMealPeriods(date: string): Promise<string[]>;
+  
   // Menu Items
   getMenuItemsByDate(date: string): Promise<MenuItem[]>;
   getMenuItemById(id: string): Promise<MenuItem | undefined>;
   createMenuItem(item: InsertMenuItem): Promise<MenuItem>;
   bulkCreateMenuItems(items: InsertMenuItem[]): Promise<MenuItem[]>;
+  deleteExpiredMenuItems(date: string, expiredPeriods: string[]): Promise<number>;
   
   // Reviews  
   getReviewsForMenuItem(menuItemId: string): Promise<Review[]>;
@@ -263,6 +268,74 @@ export class DatabaseStorage implements IStorage {
   async bulkCreateMenuItems(items: InsertMenuItem[]): Promise<MenuItem[]> {
     if (items.length === 0) return [];
     return await db.insert(menuItems).values(items as any).returning();
+  }
+
+  async deleteExpiredMenuItems(date: string, expiredPeriods: string[]): Promise<number> {
+    if (expiredPeriods.length === 0) return 0;
+    
+    const result = await db
+      .delete(menuItems)
+      .where(
+        and(
+          eq(menuItems.date, date),
+          sql`${menuItems.mealPeriod} = ANY(${expiredPeriods})`
+        )
+      );
+    
+    // Return count of deleted items (note: reviews are cascade deleted automatically)
+    return result.rowCount || 0;
+  }
+
+  async getExpiredMealPeriods(date: string): Promise<string[]> {
+    // Get current time in America/Chicago timezone
+    const now = new Date();
+    const chicagoTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Chicago" }));
+    const hour = chicagoTime.getHours() + chicagoTime.getMinutes() / 60;
+    const dayOfWeek = chicagoTime.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    // Only check current day - don't clean up future days
+    const today = new Date().toISOString().split('T')[0];
+    if (date !== today) return [];
+    
+    const expiredPeriods: string[] = [];
+    
+    // Operating hours (same as scraper)
+    const operatingHours = {
+      breakfast: { start: 7, end: 9.5 }, // 7:00 AM - 9:30 AM
+      lunch: { start: 11, end: 14 }, // 11:00 AM - 2:00 PM  
+      liteDinner: { start: 14, end: 16 }, // 2:00 PM - 4:00 PM
+      dinner: { start: 17, end: dayOfWeek === 5 ? 20 : 21 } // 5:00 PM - 9:00 PM (8 PM Friday)
+    };
+    
+    // Check each meal period to see if it's expired
+    if (hour >= operatingHours.breakfast.end) {
+      expiredPeriods.push('breakfast');
+    }
+    
+    if (hour >= operatingHours.lunch.end) {
+      expiredPeriods.push('lunch');
+    }
+    
+    if (hour >= operatingHours.liteDinner.end) {
+      expiredPeriods.push('liteDinner');
+    }
+    
+    if (hour >= operatingHours.dinner.end) {
+      expiredPeriods.push('dinner');
+    }
+    
+    return expiredPeriods;
+  }
+
+  async cleanupExpiredMenuItems(date: string): Promise<number> {
+    const expiredPeriods = await this.getExpiredMealPeriods(date);
+    if (expiredPeriods.length === 0) return 0;
+    
+    console.log(`Cleaning up expired meal periods for ${date}:`, expiredPeriods);
+    const deletedCount = await this.deleteExpiredMenuItems(date, expiredPeriods);
+    console.log(`Deleted ${deletedCount} expired menu items and their reviews`);
+    
+    return deletedCount;
   }
 
   // Reviews

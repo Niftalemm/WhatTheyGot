@@ -1094,6 +1094,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Cleanup expired menu items endpoint
+  app.post("/api/admin/cleanup-expired", requireAdmin, async (req, res) => {
+    try {
+      const { date } = req.body;
+      const targetDate = date || new Date().toISOString().split('T')[0]; // Default to today
+      
+      const deletedCount = await storage.cleanupExpiredMenuItems(targetDate);
+      
+      res.json({
+        success: true,
+        date: targetDate,
+        deletedItems: deletedCount,
+        message: `Cleaned up ${deletedCount} expired menu items and their reviews`
+      });
+    } catch (error) {
+      console.error("Error cleaning up expired menu items:", error);
+      res.status(500).json({ error: "Failed to cleanup expired menu items" });
+    }
+  });
+
+  // Get expired meal periods for a date
+  app.get("/api/admin/expired-periods/:date", requireAdmin, async (req, res) => {
+    try {
+      const { date } = req.params;
+      const expiredPeriods = await storage.getExpiredMealPeriods(date);
+      res.json({ date, expiredPeriods });
+    } catch (error) {
+      console.error("Error getting expired periods:", error);
+      res.status(500).json({ error: "Failed to get expired periods" });
+    }
+  });
+
   // Public endpoint for fetching active admin messages (for users to see)
   app.get("/api/messages", async (req, res) => {
     try {
