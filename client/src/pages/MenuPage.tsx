@@ -94,18 +94,72 @@ const isMealPeriodExpired = (mealPeriod: string): boolean => {
   }
 };
 
+// Helper function to get fun icons for each meal period
+const getMealIcon = (mealPeriod: string): string => {
+  switch (mealPeriod) {
+    case 'breakfast':
+      return '🥞';
+    case 'lunch':
+      return '🍔';
+    case 'dinner':
+    case 'liteDinner':
+      return '🌙';
+    default:
+      return '🍽️';
+  }
+};
+
+// Helper function to get next opening time for closed meal periods
+const getNextOpeningTime = (mealPeriod: string): string => {
+  const now = new Date();
+  const chicagoTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Chicago" }));
+  const dayOfWeek = chicagoTime.getDay(); // 0 = Sunday, 1 = Monday, etc.
+  
+  switch (mealPeriod) {
+    case 'breakfast':
+      // Breakfast opens at 7:00 AM next day
+      const tomorrow = new Date(chicagoTime);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return 'Will open tomorrow at 7:00 AM';
+    case 'lunch':
+      // If before 11 AM same day, opens at 11 AM. Otherwise next day.
+      if (chicagoTime.getHours() < 11) {
+        return 'Will open at 11:00 AM';
+      } else {
+        return 'Will open tomorrow at 11:00 AM';
+      }
+    case 'liteDinner':
+      // Lite dinner ended, regular dinner starts at 5 PM
+      if (chicagoTime.getHours() < 17) {
+        return 'Will open at 5:00 PM';
+      } else {
+        return 'Will open tomorrow at 2:00 PM';
+      }
+    case 'dinner':
+      // Dinner closed, opens tomorrow at 5 PM
+      if (dayOfWeek === 5) { // Friday
+        return 'Will open Monday at 5:00 PM';
+      } else {
+        return 'Will open tomorrow at 5:00 PM';
+      }
+    default:
+      return 'Check back later';
+  }
+};
+
 // Helper function to get closed message for expired meal periods
 const getClosedMessage = (mealPeriod: string): string => {
   switch (mealPeriod) {
     case 'breakfast':
-      return "Sorry, breakfast service has ended for today";
+      return "Breakfast is closed for now";
     case 'lunch':
-      return "Sorry, lunch service has ended for today";
+      return "Lunch is closed for now";
     case 'dinner':
+      return "Dinner is closed for now";
     case 'liteDinner':
-      return "Sorry, dinner service has ended for today";
+      return "Lite dinner is closed for now";
     default:
-      return "Service has ended for this meal period";
+      return "This meal period is closed for now";
   }
 };
 
@@ -378,48 +432,45 @@ export default function MenuPage() {
             return (
               <TabsContent key={mealPeriod} value={mealPeriod} className="mt-6">
                 <div className="space-y-4">
-                  {hasNoItems ? (
+                  {isExpired ? (
+                    // Show "Closed for now" message when meal period has ended
+                    <div className="text-center py-16">
+                      <div className="max-w-sm mx-auto">
+                        {/* Fun meal icon */}
+                        <div className="text-6xl mb-6">
+                          {getMealIcon(mealPeriod)}
+                        </div>
+                        
+                        {/* Closed message */}
+                        <h3 className="text-2xl font-bold text-muted-foreground mb-3">
+                          {getClosedMessage(mealPeriod)}
+                        </h3>
+                        
+                        {/* Next opening time */}
+                        <div className="bg-muted/50 rounded-lg p-4 border">
+                          <p className="text-sm text-muted-foreground font-medium">
+                            {getNextOpeningTime(mealPeriod)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : hasNoItems ? (
+                    // Show "Coming Soon" for future meal periods without items
                     <div className="text-center py-12">
-                      {isExpired ? (
-                        <div className="max-w-md mx-auto">
-                          <div className="relative w-48 h-32 mx-auto mb-6 rounded-lg overflow-hidden">
-                            <img 
-                              src={getImageForMealPeriod(mealPeriod)} 
-                              alt={`${mealPeriod} closed`}
-                              className="w-full h-full object-cover opacity-60 filter grayscale"
-                            />
-                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                              <div className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold text-lg">
-                                CLOSED
-                              </div>
-                            </div>
-                          </div>
-                          <h3 className="text-xl font-semibold text-muted-foreground mb-2 capitalize">
-                            {mealPeriod} Service Ended
-                          </h3>
-                          <p className="text-muted-foreground">
-                            {getClosedMessage(mealPeriod)}
-                          </p>
+                      <div className="max-w-md mx-auto">
+                        <div className="text-4xl mb-4">
+                          {getMealIcon(mealPeriod)}
                         </div>
-                      ) : (
-                        <div className="max-w-md mx-auto">
-                          <div className="relative w-48 h-32 mx-auto mb-6 rounded-lg overflow-hidden">
-                            <img 
-                              src={getImageForMealPeriod(mealPeriod)} 
-                              alt={`${mealPeriod} preview`}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          <h3 className="text-xl font-semibold mb-2 capitalize">
-                            {mealPeriod} Menu Coming Soon
-                          </h3>
-                          <p className="text-muted-foreground">
-                            Menu items will be available when {mealPeriod} service begins
-                          </p>
-                        </div>
-                      )}
+                        <h3 className="text-xl font-semibold mb-2 capitalize">
+                          {mealPeriod} Menu Coming Soon
+                        </h3>
+                        <p className="text-muted-foreground">
+                          Menu items will be available when {mealPeriod} service begins
+                        </p>
+                      </div>
                     </div>
                   ) : (
+                    // Show menu items when available
                     items.map((item) => (
                       <ProtectedContent key={item.id} blurLevel="md">
                         <MenuCard
