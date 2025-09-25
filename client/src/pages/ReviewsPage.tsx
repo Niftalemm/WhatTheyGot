@@ -25,7 +25,7 @@ export default function ReviewsPage() {
   useEffect(() => {
     const savedImage = localStorage.getItem('userProfileImage');
     setProfileImage(savedImage);
-  }, []);
+  }, [user]);
 
   // First fetch all menu items
   const { data: menuItems = [], isLoading: isLoadingMenuItems } = useQuery<MenuItem[]>({

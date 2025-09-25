@@ -489,8 +489,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Use deviceIdHash instead of raw deviceId for privacy
-      const reviewData = { ...req.body, deviceId: deviceIdHash };
+      // Use deviceIdHash instead of raw deviceId for privacy and add userId if authenticated
+      const reviewData = { ...req.body, deviceId: deviceIdHash, userId };
       
       // Validate the request body
       const validated = insertReviewSchema.parse(reviewData);
@@ -519,6 +519,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const rejectedReviewToCreate = {
               ...validated,
               deviceId: deviceIdHash,
+              userId,
               moderationStatus: 'rejected',
               moderationScores: moderationResult.scores,
               flaggedReason: moderationResult.reason,

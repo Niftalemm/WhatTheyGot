@@ -49,7 +49,7 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
   useEffect(() => {
     const savedImage = localStorage.getItem('userProfileImage');
     setProfileImage(savedImage);
-  }, []);
+  }, [user]);
 
   // Fetch menu item details
   const { data: menuItem, isLoading: isLoadingItem } = useQuery<MenuItem>({
