@@ -11,7 +11,6 @@ import MenuCard from "@/components/MenuCard";
 import ReviewModal from "@/components/ReviewModal";
 import ReportModal from "@/components/ReportModal";
 import CalorieCounter from "@/components/CalorieCounter";
-import CalorieTracker from "@/components/CalorieTracker";
 import { TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -353,8 +352,8 @@ export default function MenuPage() {
     },
     onSuccess: () => {
       toast({
-        title: "Calories Saved!",
-        description: `Saved ${calorieItems.length} item(s) to your daily tracker.`,
+        title: "Saved!",
+        description: "Go to your Profile page to view or update Today's Calorie Tracker.",
       });
       setCalorieItems([]); // Clear the counter after saving
       // Invalidate the calories query to refresh the tracker
@@ -460,7 +459,6 @@ export default function MenuPage() {
           lastUpdated={new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         />
 
-        <CalorieTracker />
 
         {stations.length > 0 && (
           <StationCarousel

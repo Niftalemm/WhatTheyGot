@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertTriangle } from "lucide-react";
+import CalorieTracker from "@/components/CalorieTracker";
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -319,53 +320,8 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        {/* Quick Menu Filters */}
-        <Card>
-          <CardContent className="pt-6">
-            <h3 className="font-medium mb-4">Quick Filters</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <Link to="/menu?filter=vegan" className="block">
-                <Button variant="outline" className="w-full justify-start h-auto p-3" data-testid="filter-vegan">
-                  <Leaf className="w-4 h-4 mr-2 text-green-500" />
-                  <div className="text-left">
-                    <div className="text-sm font-medium">Vegan</div>
-                    <div className="text-xs text-muted-foreground">Plant-based options</div>
-                  </div>
-                </Button>
-              </Link>
-              
-              <Link to="/menu?filter=spicy" className="block">
-                <Button variant="outline" className="w-full justify-start h-auto p-3" data-testid="filter-spicy">
-                  <Flame className="w-4 h-4 mr-2 text-red-500" />
-                  <div className="text-left">
-                    <div className="text-sm font-medium">Spicy</div>
-                    <div className="text-xs text-muted-foreground">Heat lovers</div>
-                  </div>
-                </Button>
-              </Link>
-              
-              <Link to="/menu?filter=gluten-free" className="block">
-                <Button variant="outline" className="w-full justify-start h-auto p-3" data-testid="filter-gluten-free">
-                  <WheatOff className="w-4 h-4 mr-2 text-yellow-500" />
-                  <div className="text-left">
-                    <div className="text-sm font-medium">Gluten-Free</div>
-                    <div className="text-xs text-muted-foreground">Safe options</div>
-                  </div>
-                </Button>
-              </Link>
-              
-              <Link to="/menu?filter=comfort" className="block">
-                <Button variant="outline" className="w-full justify-start h-auto p-3" data-testid="filter-comfort">
-                  <UtensilsCrossed className="w-4 h-4 mr-2 text-blue-500" />
-                  <div className="text-left">
-                    <div className="text-sm font-medium">Comfort Food</div>
-                    <div className="text-xs text-muted-foreground">Feel good meals</div>
-                  </div>
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Today's Calorie Tracker */}
+        <CalorieTracker />
 
         {/* Navigation */}
         <Card>
