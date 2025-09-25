@@ -52,6 +52,7 @@ const transformMenuItem = (item: MenuItem, reviews: Review[] = []) => {
     rating: Math.round(avgRating * 10) / 10,
     reviewCount: itemReviews.length,
     image: getImageForMealPeriod(item.mealPeriod),
+    mealPeriod: item.mealPeriod,
   };
 };
 
