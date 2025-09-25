@@ -2,14 +2,44 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Star } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueries } from "@tanstack/react-query";
 import AdminMessages from "@/components/AdminMessages";
 import { format } from "date-fns";
+import type { MenuItem, Review } from "@shared/schema";
 
 export default function ReviewsPage() {
-  const { data: reviews = [], isLoading } = useQuery<any[]>({
-    queryKey: ['/api/reviews/recent'],
+  const today = new Date().toISOString().split('T')[0];
+
+  // First fetch all menu items
+  const { data: menuItems = [] } = useQuery<MenuItem[]>({
+    queryKey: ['/api/menu', today],
+    queryFn: () => fetch(`/api/menu/${today}`).then(res => res.json()),
   });
+
+  // Then fetch reviews for each menu item (only after menu items are loaded)
+  const reviewQueries = useQueries({
+    queries: menuItems.length ? menuItems.map(item => ({
+      queryKey: ['/api/reviews', item.id],
+      queryFn: () => fetch(`/api/reviews/${item.id}`).then(res => res.json()),
+      enabled: !!item.id,
+      placeholderData: [],
+    })) : [],
+  });
+
+  // Flatten and combine all reviews with their menu item data
+  const allReviews = reviewQueries
+    .map((query, index) => {
+      const menuItem = menuItems[index];
+      return (query.data || []).map((review: Review) => ({
+        ...review,
+        menuItem,
+      }));
+    })
+    .flat()
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const isLoading = reviewQueries.some(query => query.isLoading);
+  const reviews = allReviews;
 
   return (
     <div className="pb-20">
