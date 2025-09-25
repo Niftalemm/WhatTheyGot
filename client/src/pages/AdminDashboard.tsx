@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { formatDateCDT } from '@/lib/timezone';
 import { 
   Users, 
   UtensilsCrossed, 
@@ -80,14 +81,6 @@ export default function AdminDashboard() {
     setLocation('/admin/login');
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   if (isLoading) {
     return (
@@ -259,7 +252,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <span className="text-xs text-muted-foreground">
-                      {formatDate(activity.createdAt)}
+                      {formatDateCDT(activity.createdAt)}
                     </span>
                   </div>
                 ))

@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Star, MessageCircle, Flag, AlertTriangle } from "lucide-react";
 import { useLocation } from "wouter";
+import { formatDistanceToNowCDT } from "@/lib/timezone";
 import type { MenuItem, Review } from "@shared/schema";
 import ReviewModal from "@/components/ReviewModal";
 import ReportReviewModal from "@/components/ReportReviewModal";
@@ -25,7 +26,7 @@ const transformReview = (review: Review) => ({
   rating: review.rating,
   emoji: review.emoji,
   text: review.text,
-  timeAgo: new Date(Date.now() - new Date(review.createdAt).getTime()).toLocaleTimeString(),
+  timeAgo: formatDistanceToNowCDT(review.createdAt),
   photoUrl: review.photoUrl,
 });
 

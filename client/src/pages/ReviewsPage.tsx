@@ -7,9 +7,9 @@ import { useQuery, useQueries, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import AdminMessages from "@/components/AdminMessages";
 import ReportReviewModal from "@/components/ReportReviewModal";
-import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { formatTimeCDT } from "@/lib/timezone";
 import type { MenuItem, Review } from "@shared/schema";
 
 export default function ReviewsPage() {
@@ -161,7 +161,7 @@ export default function ReviewsPage() {
                       <span>•</span>
                       <span>{review.menuItem?.station || "Unknown Station"}</span>
                       <span>•</span>
-                      <span>{format(new Date(review.createdAt), "h:mm a")}</span>
+                      <span>{formatTimeCDT(review.createdAt)}</span>
                     </div>
                   </div>
                 </div>

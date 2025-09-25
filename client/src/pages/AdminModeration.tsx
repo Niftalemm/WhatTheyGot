@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { CheckCircle, XCircle, Ban, Eye, AlertTriangle } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNowCDT } from "@/lib/timezone";
 
 interface Review {
   id: string;
@@ -228,7 +228,7 @@ export default function AdminModeration() {
                           </CardTitle>
                           <CardDescription>
                             Rating: {review.rating}/5 • 
-                            {formatDistanceToNow(new Date(review.createdAt))} ago
+                            {formatDistanceToNowCDT(review.createdAt)}
                           </CardDescription>
                         </div>
                         <div className="flex items-center gap-2">
@@ -335,7 +335,7 @@ export default function AdminModeration() {
                           Device {device.deviceIdHash.slice(0, 8)}...
                         </CardTitle>
                         <CardDescription>
-                          Banned {formatDistanceToNow(new Date(device.createdAt))} ago
+                          Banned {formatDistanceToNowCDT(device.createdAt)}
                         </CardDescription>
                       </div>
                       <Badge variant="destructive">
@@ -355,7 +355,7 @@ export default function AdminModeration() {
                     <div className="flex items-center justify-between text-sm text-muted-foreground">
                       <span>
                         Expires: {device.expiresAt 
-                          ? formatDistanceToNow(new Date(device.expiresAt), { addSuffix: true })
+                          ? formatDistanceToNowCDT(device.expiresAt)
                           : "Never (permanent)"
                         }
                       </span>

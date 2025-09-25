@@ -17,6 +17,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { formatDateCDT } from "@/lib/timezone";
 import { Link } from "wouter";
 
 interface Review {
@@ -125,14 +126,6 @@ export default function AdminReviews() {
     ));
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  };
 
   if (error) {
     return (
@@ -262,7 +255,7 @@ export default function AdminReviews() {
                           {review.emoji}
                         </span>
                         <span className="text-sm text-muted-foreground">
-                          {formatDate(review.createdAt)}
+                          {formatDateCDT(review.createdAt)}
                         </span>
                       </div>
                     </div>
