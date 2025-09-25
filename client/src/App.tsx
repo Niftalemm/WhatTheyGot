@@ -36,7 +36,7 @@ function MainApp() {
         console.log('Add review functionality would be implemented here');
         return <MenuPage />;
       case 'profile':
-        return <Home />;
+        return <ProfilePage />;
       default:
         return <MenuPage />;
     }
@@ -93,7 +93,7 @@ function Router() {
       <Route path="/" component={MainApp} />
       <Route path="/menu" component={MainApp} />
       <Route path="/reviews" component={ReviewsPage} />
-      <Route path="/profile" component={Home} />
+      <Route path="/profile" component={ProfilePage} />
       <Route component={NotFound} />
     </Switch>
   );

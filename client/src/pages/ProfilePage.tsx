@@ -1,27 +1,42 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Star, MessageSquare, Flag, Settings, LogOut } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { 
+  LogOut, 
+  Edit, 
+  Camera, 
+  MessageSquare, 
+  UtensilsCrossed,
+  ArrowRight,
+  Leaf,
+  Flame,
+  WheatOff 
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { Link } from "wouter";
 
 export default function ProfilePage() {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [username, setUsername] = useState(user?.displayName || "");
+  const [feedback, setFeedback] = useState("");
 
   const handleLogout = () => {
-    window.location.href = "/api/logout";
+    fetch('/api/auth/signout', { method: 'POST' })
+      .then(() => window.location.reload());
   };
 
   const getDisplayName = () => {
-    if (user?.firstName && user?.lastName) {
-      return `${user.firstName} ${user.lastName}`;
-    }
-    if (user?.displayName) {
-      return user.displayName;
-    }
-    if (user?.email) {
-      return user.email.split('@')[0];
-    }
+    if (user?.displayName) return user.displayName;
+    if (user?.firstName && user?.lastName) return `${user.firstName} ${user.lastName}`;
+    if (user?.email) return user.email.split('@')[0];
     return 'Student';
   };
 
@@ -35,140 +50,249 @@ export default function ProfilePage() {
       .slice(0, 2);
   };
 
-  const getJoinedDate = () => {
-    if (user?.createdAt) {
-      const date = new Date(user.createdAt);
-      const now = new Date();
-      const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-      
-      if (diffInDays < 1) return 'Joined today';
-      if (diffInDays < 7) return 'Joined this week';
-      if (diffInDays < 30) return 'Joined this month';
-      return `Joined ${date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+  const handleSaveUsername = async () => {
+    if (!username.trim()) {
+      toast({
+        title: "Invalid username",
+        description: "Username cannot be empty",
+        variant: "destructive",
+      });
+      return;
     }
-    return 'New member';
+
+    // Basic bad word check (would be enhanced server-side)
+    const badWords = ['admin', 'moderator', 'anonymous', 'fuck', 'shit', 'damn'];
+    if (badWords.some(word => username.toLowerCase().includes(word))) {
+      toast({
+        title: "Username not allowed",
+        description: "Please choose a different username. Inappropriate usernames may result in account suspension.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // TODO: API call to update username
+    setIsEditingName(false);
+    toast({
+      title: "Username updated",
+      description: "Your display name has been updated successfully.",
+    });
   };
 
-  // Real user stats (placeholder for now - would be fetched from API)
-  const userStats = {
-    reviewsPosted: 0, // TODO: Fetch real data
-    averageRating: null,
-    photosShared: 0,
-    reportsSubmitted: 0,
+  const handleSubmitFeedback = async () => {
+    if (!feedback.trim()) return;
+
+    // TODO: API call to send feedback to admin dashboard
+    toast({
+      title: "Feedback sent",
+      description: "Thank you for your feedback! We'll review it shortly.",
+    });
+    setFeedback("");
   };
+
+  const handleImageUpload = () => {
+    // TODO: Implement image upload
+    toast({
+      title: "Coming soon",
+      description: "Profile picture upload will be available soon. Please note that inappropriate images will result in account suspension.",
+    });
+  };
+
   return (
     <div className="pb-20">
+      {/* Header */}
       <div className="sticky top-0 bg-background/95 backdrop-blur-sm py-4 px-4 z-10 border-b border-border">
-        <h1 className="text-2xl font-bold" data-testid="text-profile-title">
-          Your Profile
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-semibold" data-testid="text-profile-title">
+            Profile
+          </h1>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={handleLogout}
+            data-testid="button-logout"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Sign Out
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-6 px-4 pt-6">
-
-        {/* User Info */}
+        {/* Profile Section */}
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <Avatar className="w-16 h-16">
-                <AvatarImage src={user?.profileImageUrl || ""} alt={getDisplayName()} />
-                <AvatarFallback className="text-lg font-medium">
-                  {getInitials()}
-                </AvatarFallback>
-              </Avatar>
-              
-              <div className="flex-1">
-                <h2 className="text-lg font-semibold" data-testid="text-username">
-                  {getDisplayName()}
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  {user?.email && (
-                    <span className="block">{user.email}</span>
-                  )}
-                  MNSU Student • {getJoinedDate()}
-                </p>
+              {/* Avatar with Upload Button */}
+              <div className="relative">
+                <Avatar className="w-16 h-16">
+                  <AvatarImage src={user?.profileImageUrl || ""} alt={getDisplayName()} />
+                  <AvatarFallback className="text-lg font-medium">
+                    {getInitials()}
+                  </AvatarFallback>
+                </Avatar>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0"
+                  onClick={handleImageUpload}
+                  data-testid="button-upload-image"
+                >
+                  <Camera className="w-3 h-3" />
+                </Button>
               </div>
               
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={handleLogout}
-                data-testid="button-logout"
-                title="Sign Out"
-              >
-                <LogOut className="w-4 h-4" />
+              {/* Name Section */}
+              <div className="flex-1 min-w-0">
+                {isEditingName ? (
+                  <div className="space-y-2">
+                    <Input
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="Enter username"
+                      className="font-medium"
+                      data-testid="input-username"
+                    />
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={handleSaveUsername} data-testid="button-save-username">
+                        Save
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => setIsEditingName(false)}
+                        data-testid="button-cancel-username"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-lg font-semibold truncate" data-testid="text-username">
+                        {getDisplayName()}
+                      </h2>
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        onClick={() => setIsEditingName(true)}
+                        data-testid="button-edit-username"
+                      >
+                        <Edit className="w-3 h-3" />
+                      </Button>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      MNSU Student
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Menu Filters */}
+        <Card>
+          <CardContent className="pt-6">
+            <h3 className="font-medium mb-4">Quick Filters</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="outline" className="justify-start h-auto p-3" data-testid="filter-vegan">
+                <Leaf className="w-4 h-4 mr-2 text-green-500" />
+                <div className="text-left">
+                  <div className="text-sm font-medium">Vegan</div>
+                  <div className="text-xs text-muted-foreground">Plant-based options</div>
+                </div>
+              </Button>
+              
+              <Button variant="outline" className="justify-start h-auto p-3" data-testid="filter-spicy">
+                <Flame className="w-4 h-4 mr-2 text-red-500" />
+                <div className="text-left">
+                  <div className="text-sm font-medium">Spicy</div>
+                  <div className="text-xs text-muted-foreground">Heat lovers</div>
+                </div>
+              </Button>
+              
+              <Button variant="outline" className="justify-start h-auto p-3" data-testid="filter-gluten-free">
+                <WheatOff className="w-4 h-4 mr-2 text-yellow-500" />
+                <div className="text-left">
+                  <div className="text-sm font-medium">Gluten-Free</div>
+                  <div className="text-xs text-muted-foreground">Safe options</div>
+                </div>
+              </Button>
+              
+              <Button variant="outline" className="justify-start h-auto p-3" data-testid="filter-comfort">
+                <UtensilsCrossed className="w-4 h-4 mr-2 text-blue-500" />
+                <div className="text-left">
+                  <div className="text-sm font-medium">Comfort Food</div>
+                  <div className="text-xs text-muted-foreground">Feel good meals</div>
+                </div>
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-4">
-        <Card className="text-center">
-          <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-primary" data-testid="text-reviews-count">
-              {userStats.reviewsPosted}
-            </div>
-            <p className="text-sm text-muted-foreground">Reviews Posted</p>
-          </CardContent>
-        </Card>
-        
-        <Card className="text-center">
-          <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-primary" data-testid="text-avg-rating">
-              {userStats.averageRating}
-            </div>
-            <p className="text-sm text-muted-foreground">Avg Rating</p>
-          </CardContent>
-        </Card>
-        
-        <Card className="text-center">
-          <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-primary" data-testid="text-photos-count">
-              {userStats.photosShared}
-            </div>
-            <p className="text-sm text-muted-foreground">Photos Shared</p>
-          </CardContent>
-        </Card>
-        
-        <Card className="text-center">
-          <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-primary" data-testid="text-reports-count">
-              {userStats.reportsSubmitted}
-            </div>
-            <p className="text-sm text-muted-foreground">Issues Reported</p>
-          </CardContent>
-        </Card>
-      </div>
-
-        {/* Recent Activity */}
+        {/* Navigation */}
         <Card>
-          <CardHeader>
-            <CardTitle data-testid="text-activity-title">Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8 text-muted-foreground">
-              <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No recent activity yet</p>
-              <p className="text-sm">Start by reviewing your favorite campus meals!</p>
+          <CardContent className="pt-6">
+            <div className="space-y-3">
+              <Link to="/menu" className="block">
+                <Button variant="outline" className="w-full justify-between h-auto p-4" data-testid="button-browse-today">
+                  <div className="flex items-center gap-3">
+                    <UtensilsCrossed className="w-5 h-5" />
+                    <div className="text-left">
+                      <div className="font-medium">Browse Today</div>
+                      <div className="text-sm text-muted-foreground">See what's available now</div>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </Link>
+              
+              <Link to="/reviews" className="block">
+                <Button variant="outline" className="w-full justify-between h-auto p-4" data-testid="button-read-recent">
+                  <div className="flex items-center gap-3">
+                    <MessageSquare className="w-5 h-5" />
+                    <div className="text-left">
+                      <div className="font-medium">Read Recent</div>
+                      <div className="text-sm text-muted-foreground">Latest student reviews</div>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </Link>
             </div>
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
-        <div className="space-y-3">
-          <h3 className="font-semibold">Quick Actions</h3>
-          <div className="space-y-2">
-            <Button variant="outline" className="w-full justify-start" data-testid="button-view-reviews">
-              <MessageSquare className="w-4 h-4 mr-2" />
-              View All My Reviews
-            </Button>
-            <Button variant="outline" className="w-full justify-start" data-testid="button-report-issue">
-              <Flag className="w-4 h-4 mr-2" />
-              Report an Issue
-            </Button>
-          </div>
-        </div>
+        {/* Feedback Section */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <Label htmlFor="feedback" className="font-medium">Send Feedback</Label>
+              <Textarea
+                id="feedback"
+                placeholder="Share your thoughts, suggestions, or report issues..."
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value)}
+                className="resize-none"
+                rows={3}
+                data-testid="textarea-feedback"
+              />
+              <Button 
+                onClick={handleSubmitFeedback}
+                disabled={!feedback.trim()}
+                className="w-full"
+                data-testid="button-submit-feedback"
+              >
+                Send Feedback
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                Your feedback helps improve the dining experience for everyone
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
