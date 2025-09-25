@@ -125,9 +125,21 @@ export default function ReviewsPage() {
               <CardHeader className="pb-3">
                 <div className="flex items-start gap-3">
                   <Avatar className="w-10 h-10">
-                    {((review.user?.id === user?.id) || (review.userId === user?.id)) && profileImage ? (
-                      <AvatarImage src={profileImage} alt={review.user?.displayName || "User"} />
-                    ) : null}
+                    {(() => {
+                      const isMyReview = (review.user?.id === user?.id) || (review.userId === user?.id);
+                      console.log('DEBUG - Review:', {
+                        reviewId: review.id,
+                        reviewUserId: review.userId,
+                        reviewUserObjectId: review.user?.id,
+                        currentUserId: user?.id,
+                        isMyReview,
+                        hasProfileImage: !!profileImage,
+                        willShowImage: isMyReview && profileImage
+                      });
+                      return isMyReview && profileImage ? (
+                        <AvatarImage src={profileImage} alt={review.user?.displayName || "User"} />
+                      ) : null;
+                    })()}
                     <AvatarFallback className="text-sm font-medium">
                       {review.user?.displayName?.substring(0, 2).toUpperCase() || "??"}
                     </AvatarFallback>

@@ -294,9 +294,20 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
                   <CardContent className="p-4">
                     <div className="flex gap-3">
                       <Avatar className="w-10 h-10">
-                        {review.userId === user?.id && profileImage ? (
-                          <AvatarImage src={profileImage} alt="Your profile" />
-                        ) : null}
+                        {(() => {
+                          const isMyReview = review.userId === user?.id;
+                          console.log('DEBUG - MenuItemPage Review:', {
+                            reviewId: review.id,
+                            reviewUserId: review.userId,
+                            currentUserId: user?.id,
+                            isMyReview,
+                            hasProfileImage: !!profileImage,
+                            willShowImage: isMyReview && profileImage
+                          });
+                          return isMyReview && profileImage ? (
+                            <AvatarImage src={profileImage} alt="Your profile" />
+                          ) : null;
+                        })()}
                         <AvatarFallback className="text-sm">
                           {transformedReview.userInitials}
                         </AvatarFallback>
