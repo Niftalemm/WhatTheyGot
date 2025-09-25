@@ -32,6 +32,9 @@ export default function ProfilePage() {
   const [feedback, setFeedback] = useState("");
   const [isImageUploadOpen, setIsImageUploadOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [profileImage, setProfileImage] = useState<string | null>(
+    localStorage.getItem('userProfileImage') || null
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleLogout = () => {
@@ -177,12 +180,15 @@ export default function ProfilePage() {
     fileInputRef.current?.click();
   };
 
-  // Upload cropped image (placeholder functionality for now)
+  // Upload cropped image
   const handleUploadCroppedImage = async () => {
     if (!selectedImage) return;
     
     try {
-      // For now, just show success message since we're not implementing actual upload
+      // Save the image locally for demo purposes
+      localStorage.setItem('userProfileImage', selectedImage);
+      setProfileImage(selectedImage);
+      
       toast({
         title: "Image updated!",
         description: "Your profile picture has been updated successfully.",
@@ -233,7 +239,7 @@ export default function ProfilePage() {
               {/* Avatar with Upload Button */}
               <div className="relative">
                 <Avatar className="w-16 h-16">
-                  <AvatarImage src={selectedImage || user?.profileImageUrl || ""} alt={getDisplayName()} />
+                  <AvatarImage src={profileImage || user?.profileImageUrl || ""} alt={getDisplayName()} />
                   <AvatarFallback className="text-lg font-medium">
                     {getInitials()}
                   </AvatarFallback>
