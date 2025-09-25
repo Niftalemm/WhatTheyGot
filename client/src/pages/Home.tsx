@@ -41,7 +41,7 @@ export default function Home() {
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
             <Avatar className="h-12 w-12">
-              <AvatarImage src={user?.profileImageUrl || ""} alt={getDisplayName()} />
+              <AvatarImage src={localStorage.getItem('userProfileImage') || user?.profileImageUrl || ""} alt={getDisplayName()} />
               <AvatarFallback>{getInitials()}</AvatarFallback>
             </Avatar>
             <div>

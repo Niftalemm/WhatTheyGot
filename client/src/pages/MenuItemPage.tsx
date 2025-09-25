@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { ArrowLeft, Star, MessageCircle, Flag, AlertTriangle } from "lucide-react";
 import { useLocation } from "wouter";
 import { formatDistanceToNowCDT } from "@/lib/timezone";
@@ -33,6 +34,8 @@ const transformReview = (review: Review) => ({
 export default function MenuItemPage({ itemId }: MenuItemPageProps) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [profileImage, setProfileImage] = useState<string | null>(null);
   const [reviewModal, setReviewModal] = useState({
     isOpen: false,
     itemName: '',
@@ -41,6 +44,12 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
     isOpen: false,
     reviewId: '',
   });
+
+  // Load saved profile image
+  useEffect(() => {
+    const savedImage = localStorage.getItem('userProfileImage');
+    setProfileImage(savedImage);
+  }, []);
 
   // Fetch menu item details
   const { data: menuItem, isLoading: isLoadingItem } = useQuery<MenuItem>({
@@ -285,6 +294,9 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
                   <CardContent className="p-4">
                     <div className="flex gap-3">
                       <Avatar className="w-10 h-10">
+                        {review.userId === user?.id && profileImage ? (
+                          <AvatarImage src={profileImage} alt="Your profile" />
+                        ) : null}
                         <AvatarFallback className="text-sm">
                           {transformedReview.userInitials}
                         </AvatarFallback>

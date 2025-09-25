@@ -1,13 +1,14 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Star, Flag } from "lucide-react";
 import { useQuery, useQueries, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AdminMessages from "@/components/AdminMessages";
 import ReportReviewModal from "@/components/ReportReviewModal";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { formatTimeCDT } from "@/lib/timezone";
 import type { MenuItem, Review } from "@shared/schema";
@@ -17,6 +18,14 @@ export default function ReviewsPage() {
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [selectedReviewId, setSelectedReviewId] = useState<string>("");
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+
+  // Load saved profile image
+  useEffect(() => {
+    const savedImage = localStorage.getItem('userProfileImage');
+    setProfileImage(savedImage);
+  }, []);
 
   // First fetch all menu items
   const { data: menuItems = [], isLoading: isLoadingMenuItems } = useQuery<MenuItem[]>({
@@ -116,6 +125,9 @@ export default function ReviewsPage() {
               <CardHeader className="pb-3">
                 <div className="flex items-start gap-3">
                   <Avatar className="w-10 h-10">
+                    {review.user?.id === user?.id && profileImage ? (
+                      <AvatarImage src={profileImage} alt={review.user?.displayName || "User"} />
+                    ) : null}
                     <AvatarFallback className="text-sm font-medium">
                       {review.user?.displayName?.substring(0, 2).toUpperCase() || "??"}
                     </AvatarFallback>
