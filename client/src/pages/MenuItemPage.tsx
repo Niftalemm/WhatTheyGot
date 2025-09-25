@@ -11,12 +11,43 @@ import { useAuth } from "@/hooks/useAuth";
 import { ArrowLeft, Star, MessageCircle, Flag, AlertTriangle } from "lucide-react";
 import { useLocation } from "wouter";
 import { formatDistanceToNowCDT } from "@/lib/timezone";
-import type { MenuItem, Review } from "@shared/schema";
+import type { MenuItem, Review, User } from "@shared/schema";
 import ReviewModal from "@/components/ReviewModal";
 import ReportReviewModal from "@/components/ReportReviewModal";
 
 interface MenuItemPageProps {
   itemId: string;
+}
+
+// Helper functions for user display
+function computeDisplayName(firstName: string | null, lastName: string | null): string {
+  const first = firstName?.trim() || "";
+  const last = lastName?.trim() || "";
+  
+  if (first && last) {
+    return `${first} ${last}`;
+  } else if (first) {
+    return first;
+  } else if (last) {
+    return last;
+  } else {
+    return "Anonymous User";
+  }
+}
+
+function getInitials(firstName: string | null, lastName: string | null): string {
+  const first = firstName?.trim() || "";
+  const last = lastName?.trim() || "";
+  
+  if (first && last) {
+    return (first[0] + last[0]).toUpperCase();
+  } else if (first) {
+    return first.slice(0, 2).toUpperCase();
+  } else if (last) {
+    return last.slice(0, 2).toUpperCase();
+  } else {
+    return "AU";
+  }
 }
 
 
@@ -180,17 +211,25 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
     };
   };
 
-  // Transform reviews for display - temporary until authentication is fully implemented
-  const transformReview = (review: Review) => ({
-    id: review.id,
-    userName: 'Anonymous User', // Will be replaced with actual user data
-    userInitials: 'AU',
-    rating: review.rating,
-    emoji: review.emoji,
-    text: review.text,
-    timeAgo: formatDistanceToNowCDT(review.createdAt),
-    photoUrl: review.photoUrl,
-  });
+  // Transform reviews for display with real user data
+  const transformReview = (review: Review & { user?: User }) => {
+    const displayName = review.user ? computeDisplayName(review.user.firstName, review.user.lastName) : 'Anonymous User';
+    const initials = review.user 
+      ? getInitials(review.user.firstName, review.user.lastName)
+      : 'AU';
+    
+    return {
+      id: review.id,
+      userName: displayName,
+      userInitials: initials,
+      profileImageUrl: review.user?.profileImageUrl || null,
+      rating: review.rating,
+      emoji: review.emoji,
+      text: review.text,
+      timeAgo: formatDistanceToNowCDT(review.createdAt as unknown as string),
+      photoUrl: review.photoUrl,
+    };
+  };
 
   if (isLoadingItem) {
     return (
@@ -400,20 +439,13 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
                   <CardContent className="p-4">
                     <div className="flex gap-3">
                       <Avatar className="w-10 h-10">
-                        {(() => {
-                          const isMyReview = review.userId === user?.id;
-                          console.log('DEBUG - MenuItemPage Review:', {
-                            reviewId: review.id,
-                            reviewUserId: review.userId,
-                            currentUserId: user?.id,
-                            isMyReview,
-                            hasProfileImage: !!profileImage,
-                            willShowImage: isMyReview && profileImage
-                          });
-                          return isMyReview && profileImage ? (
+                        {transformedReview.profileImageUrl ? (
+                          <AvatarImage src={transformedReview.profileImageUrl} alt={`${transformedReview.userName}'s profile`} />
+                        ) : (
+                          review.userId === user?.id && profileImage ? (
                             <AvatarImage src={profileImage} alt="Your profile" />
-                          ) : null;
-                        })()}
+                          ) : null
+                        )}
                         <AvatarFallback className="text-sm">
                           {transformedReview.userInitials}
                         </AvatarFallback>

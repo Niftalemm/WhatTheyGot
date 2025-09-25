@@ -404,8 +404,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Reviews
-  async getReviewsForMenuItem(menuItemId: string): Promise<Review[]> {
-    return await db
+  async getReviewsForMenuItem(menuItemId: string): Promise<(Review & { user?: User })[]> {
+    // First get the approved reviews
+    const reviewResults = await db
       .select()
       .from(reviews)
       .where(
@@ -417,6 +418,26 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(desc(reviews.createdAt));
+
+    // Then get related users for each review
+    const results = [];
+    for (const review of reviewResults) {
+      let user = null;
+      if (review.userId) {
+        const [userResult] = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, review.userId));
+        user = userResult;
+      }
+
+      results.push({
+        ...review,
+        user,
+      });
+    }
+
+    return results as (Review & { user?: User })[];
   }
 
   async getRecentReviews(limit = 20): Promise<(Review & { menuItem: MenuItem; user?: User })[]> {
