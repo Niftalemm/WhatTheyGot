@@ -216,9 +216,14 @@ export default function ProfilePage() {
       {/* Header */}
       <div className="sticky top-0 bg-background/95 backdrop-blur-sm py-4 px-4 z-10 border-b border-border">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold" data-testid="text-profile-title">
-            Profile
-          </h1>
+          <div>
+            <h1 className="text-xl font-semibold" data-testid="text-profile-title">
+              Profile
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              Manage your account and preferences
+            </p>
+          </div>
           <Button 
             variant="ghost" 
             size="sm"
