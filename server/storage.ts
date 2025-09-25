@@ -20,6 +20,8 @@ import {
   type InsertEmailCode,
   type ReviewReport,
   type InsertReviewReport,
+  type CalorieEntry,
+  type InsertCalorieEntry,
   menuItems,
   reviews,
   reports,
@@ -30,6 +32,7 @@ import {
   users,
   emailCodes,
   reviewReports,
+  calorieEntries,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, or, isNull, sql } from "drizzle-orm";
@@ -112,6 +115,13 @@ export interface IStorage {
     totalReports: number;
     recentActivity: any[];
   }>;
+
+  // Calorie Entries
+  getTodaysCalorieEntries(userId?: string, deviceId?: string): Promise<CalorieEntry[]>;
+  createCalorieEntry(entry: InsertCalorieEntry): Promise<CalorieEntry>;
+  updateCalorieEntryQuantity(id: string, quantity: number): Promise<void>;
+  deleteCalorieEntry(id: string): Promise<void>;
+  cleanupOldCalorieEntries(): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -799,6 +809,52 @@ export class DatabaseStorage implements IStorage {
       totalReports,
       recentActivity
     };
+  }
+
+  // Calorie Entries
+  async getTodaysCalorieEntries(userId?: string, deviceId?: string): Promise<CalorieEntry[]> {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    
+    let whereConditions = [eq(calorieEntries.mealDate, today)];
+
+    // Filter by user identity (userId or deviceId)
+    if (userId) {
+      whereConditions.push(eq(calorieEntries.userId, userId));
+    } else if (deviceId) {
+      whereConditions.push(eq(calorieEntries.deviceId, deviceId));
+    }
+
+    return await db
+      .select()
+      .from(calorieEntries)
+      .where(and(...whereConditions))
+      .orderBy(desc(calorieEntries.savedAt));
+  }
+
+  async createCalorieEntry(entry: InsertCalorieEntry): Promise<CalorieEntry> {
+    const [created] = await db.insert(calorieEntries).values(entry).returning();
+    return created;
+  }
+
+  async updateCalorieEntryQuantity(id: string, quantity: number): Promise<void> {
+    await db
+      .update(calorieEntries)
+      .set({ quantity })
+      .where(eq(calorieEntries.id, id));
+  }
+
+  async deleteCalorieEntry(id: string): Promise<void> {
+    await db.delete(calorieEntries).where(eq(calorieEntries.id, id));
+  }
+
+  async cleanupOldCalorieEntries(): Promise<number> {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    
+    const result = await db
+      .delete(calorieEntries)
+      .where(sql`${calorieEntries.mealDate} < ${today}`);
+    
+    return result.rowCount || 0;
   }
 }
 

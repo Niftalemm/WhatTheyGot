@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertReviewSchema, insertReportSchema, insertAdminMessageSchema, insertMenuItemSchema, insertUserSchema, insertReviewReportSchema, reviews, bannedDevices, users, User } from "@shared/schema";
+import { insertReviewSchema, insertReportSchema, insertAdminMessageSchema, insertMenuItemSchema, insertUserSchema, insertReviewReportSchema, insertCalorieEntrySchema, reviews, bannedDevices, users, User } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { menuScraper } from "./scraper";
 import jwt from "jsonwebtoken";
@@ -1375,6 +1375,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error unbanning device:", error);
       res.status(500).json({ error: "Failed to unban device" });
+    }
+  });
+
+  // Calorie Entry Routes
+  app.get("/api/calories", async (req, res) => {
+    try {
+      const deviceId = generateDeviceId(req);
+      
+      // Try to get user from session if available
+      const user = (req as any).user;
+      
+      // Clean up old entries before fetching today's data
+      await storage.cleanupOldCalorieEntries();
+      
+      const entries = await storage.getTodaysCalorieEntries(user?.id, deviceId);
+      res.json(entries);
+    } catch (error) {
+      console.error("Error fetching calorie entries:", error);
+      res.status(500).json({ error: "Failed to fetch calorie entries" });
+    }
+  });
+
+  app.post("/api/calories", async (req, res) => {
+    try {
+      const deviceId = generateDeviceId(req);
+      const user = (req as any).user;
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Clean up old entries to maintain daily-only retention
+      await storage.cleanupOldCalorieEntries();
+      
+      // Prepare the entry data
+      const entryData = {
+        ...req.body,
+        userId: user?.id || null,
+        deviceId: user?.id ? null : deviceId, // Use deviceId only if no user
+        mealDate: today,
+      };
+      
+      // Validate the data
+      const validatedEntry = insertCalorieEntrySchema.parse(entryData);
+      
+      const createdEntry = await storage.createCalorieEntry(validatedEntry);
+      res.status(201).json(createdEntry);
+    } catch (error: any) {
+      console.error("Error creating calorie entry:", error);
+      if (error.name === "ZodError") {
+        return res.status(400).json({ 
+          error: "Invalid entry data", 
+          details: error.errors 
+        });
+      }
+      res.status(500).json({ error: "Failed to create calorie entry" });
+    }
+  });
+
+  app.patch("/api/calories/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { quantity } = req.body;
+      
+      if (typeof quantity !== 'number' || quantity < 1) {
+        return res.status(400).json({ error: "Quantity must be a positive number" });
+      }
+      
+      const deviceId = generateDeviceId(req);
+      const user = (req as any).user;
+      
+      // Clean up old entries
+      await storage.cleanupOldCalorieEntries();
+      
+      // Get existing entry to verify ownership
+      const existingEntries = await storage.getTodaysCalorieEntries(user?.id, deviceId);
+      const entry = existingEntries.find(e => e.id === id);
+      
+      if (!entry) {
+        return res.status(404).json({ error: "Calorie entry not found or access denied" });
+      }
+      
+      await storage.updateCalorieEntryQuantity(id, quantity);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating calorie entry quantity:", error);
+      res.status(500).json({ error: "Failed to update quantity" });
+    }
+  });
+
+  app.delete("/api/calories/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deviceId = generateDeviceId(req);
+      const user = (req as any).user;
+      
+      // Clean up old entries
+      await storage.cleanupOldCalorieEntries();
+      
+      // Get existing entry to verify ownership
+      const existingEntries = await storage.getTodaysCalorieEntries(user?.id, deviceId);
+      const entry = existingEntries.find(e => e.id === id);
+      
+      if (!entry) {
+        return res.status(404).json({ error: "Calorie entry not found or access denied" });
+      }
+      
+      await storage.deleteCalorieEntry(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting calorie entry:", error);
+      res.status(500).json({ error: "Failed to delete entry" });
     }
   });
 

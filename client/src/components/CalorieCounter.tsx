@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { X, Calculator } from "lucide-react";
+import { X, Calculator, Save } from "lucide-react";
 import { useState } from "react";
 
 interface CalorieItem {
@@ -14,12 +14,14 @@ interface CalorieCounterProps {
   selectedItems: CalorieItem[];
   onRemoveItem: (itemId: string) => void;
   onClear: () => void;
+  onSave: () => void;
 }
 
 export default function CalorieCounter({
   selectedItems,
   onRemoveItem,
-  onClear
+  onClear,
+  onSave
 }: CalorieCounterProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -44,6 +46,18 @@ export default function CalorieCounter({
             <Badge variant="secondary" className="text-base font-bold" data-testid="text-total-calories">
               {totalCalories} cal
             </Badge>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSave();
+              }}
+              data-testid="button-save-calories"
+            >
+              <Save className="w-3 h-3 mr-1" />
+              Save
+            </Button>
             <Button
               variant="outline"
               size="sm"

@@ -157,10 +157,29 @@ export const moderationEvents = pgTable("moderation_events", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Calorie entries for daily meal tracking
+export const calorieEntries = pgTable("calorie_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
+  deviceId: text("device_id"), // Fallback for non-logged-in users
+  mealDate: text("meal_date").notNull(), // Format: YYYY-MM-DD
+  foodName: text("food_name").notNull(),
+  caloriesPerServing: integer("calories_per_serving").notNull(),
+  quantity: integer("quantity").default(1).notNull(),
+  savedAt: timestamp("saved_at").defaultNow().notNull(),
+}, (table) => ({
+  // Ensure accountability: either user_id or device_id must be present
+  identityCheck: sql`CHECK (user_id IS NOT NULL OR device_id IS NOT NULL)`,
+  // Add indexes for performance
+  userIndex: sql`CREATE INDEX IF NOT EXISTS calorie_entries_user_id_idx ON calorie_entries (user_id)`,
+  mealDateIndex: sql`CREATE INDEX IF NOT EXISTS calorie_entries_meal_date_idx ON calorie_entries (meal_date)`,
+}));
+
 // Define relations
 export const usersRelations = relations(users, ({ many }) => ({
   reviews: many(reviews),
   reviewReports: many(reviewReports),
+  calorieEntries: many(calorieEntries),
 }));
 
 export const menuItemsRelations = relations(menuItems, ({ many }) => ({
@@ -195,6 +214,13 @@ export const reportsRelations = relations(reports, ({ one }) => ({
   menuItem: one(menuItems, {
     fields: [reports.menuItemId],
     references: [menuItems.id],
+  }),
+}));
+
+export const calorieEntriesRelations = relations(calorieEntries, ({ one }) => ({
+  user: one(users, {
+    fields: [calorieEntries.userId],
+    references: [users.id],
   }),
 }));
 
@@ -276,6 +302,15 @@ export const insertModerationEventSchema = createInsertSchema(moderationEvents).
   createdAt: true,
 });
 
+export const insertCalorieEntrySchema = createInsertSchema(calorieEntries).omit({
+  id: true,
+  savedAt: true,
+}).extend({
+  foodName: z.string().min(1).max(100),
+  caloriesPerServing: z.number().min(0),
+  quantity: z.number().min(1).default(1),
+});
+
 // Types (keeping backward compatibility)
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
@@ -305,3 +340,6 @@ export type InsertBannedDevice = z.infer<typeof insertBannedDeviceSchema>;
 
 export type ModerationEvent = typeof moderationEvents.$inferSelect;
 export type InsertModerationEvent = z.infer<typeof insertModerationEventSchema>;
+
+export type CalorieEntry = typeof calorieEntries.$inferSelect;
+export type InsertCalorieEntry = z.infer<typeof insertCalorieEntrySchema>;

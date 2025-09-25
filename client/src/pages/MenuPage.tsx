@@ -11,6 +11,7 @@ import MenuCard from "@/components/MenuCard";
 import ReviewModal from "@/components/ReviewModal";
 import ReportModal from "@/components/ReportModal";
 import CalorieCounter from "@/components/CalorieCounter";
+import CalorieTracker from "@/components/CalorieTracker";
 import { TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -338,6 +339,52 @@ export default function MenuPage() {
     setCalorieItems([]);
   };
 
+  // Mutation to save calorie entries
+  const saveCaloriesMutation = useMutation({
+    mutationFn: async (items: CalorieItem[]) => {
+      const promises = items.map(item => 
+        apiRequest('/api/calories', {
+          method: 'POST',
+          body: {
+            foodName: item.name,
+            caloriesPerServing: item.calories,
+            quantity: 1,
+          },
+        })
+      );
+      return Promise.all(promises);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Calories Saved!",
+        description: `Saved ${calorieItems.length} item(s) to your daily tracker.`,
+      });
+      setCalorieItems([]); // Clear the counter after saving
+      // Invalidate the calories query to refresh the tracker
+      queryClient.invalidateQueries({ queryKey: ['/api/calories'] });
+    },
+    onError: (error) => {
+      console.error('Error saving calories:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save calorie entries. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSaveCalories = () => {
+    if (calorieItems.length === 0) {
+      toast({
+        title: "No Items",
+        description: "Add some items to the calorie counter first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    saveCaloriesMutation.mutate(calorieItems);
+  };
+
   if (isLoadingMenu) {
     return (
       <div className="pb-20">
@@ -372,6 +419,7 @@ export default function MenuPage() {
         selectedItems={calorieItems}
         onRemoveItem={handleRemoveFromCalorieCounter}
         onClear={handleClearCalorieCounter}
+        onSave={handleSaveCalories}
       />
 
       <div className="space-y-6 px-4 pt-6">
@@ -414,6 +462,8 @@ export default function MenuPage() {
           currentMeal={getCurrentMeal()}
           lastUpdated={new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         />
+
+        <CalorieTracker />
 
         {stations.length > 0 && (
           <StationCarousel
