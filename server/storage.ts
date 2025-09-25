@@ -307,20 +307,21 @@ export class DatabaseStorage implements IStorage {
       dinner: { start: 17, end: dayOfWeek === 5 ? 20 : 21 } // 5:00 PM - 9:00 PM (8 PM Friday)
     };
     
-    // Check each meal period to see if it's expired
-    if (hour >= operatingHours.breakfast.end) {
+    // Clean up in the hour before closing (not after closing)
+    // This removes expired menu items and reviews to save space
+    if (hour >= operatingHours.breakfast.end - 1) {
       expiredPeriods.push('breakfast');
     }
     
-    if (hour >= operatingHours.lunch.end) {
+    if (hour >= operatingHours.lunch.end - 1) {
       expiredPeriods.push('lunch');
     }
     
-    if (hour >= operatingHours.liteDinner.end) {
+    if (hour >= operatingHours.liteDinner.end - 1) {
       expiredPeriods.push('liteDinner');
     }
     
-    if (hour >= operatingHours.dinner.end) {
+    if (hour >= operatingHours.dinner.end - 1) {
       expiredPeriods.push('dinner');
     }
     
