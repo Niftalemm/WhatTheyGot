@@ -24,10 +24,7 @@ export default function CalorieTracker() {
   // Mutation to update quantity
   const updateQuantityMutation = useMutation({
     mutationFn: async ({ id, quantity }: { id: string; quantity: number }) => {
-      return apiRequest(`/api/calories/${id}`, {
-        method: "PATCH",
-        body: { quantity },
-      });
+      return apiRequest("PATCH", `/api/calories/${id}`, { quantity });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/calories"] });
@@ -37,9 +34,7 @@ export default function CalorieTracker() {
   // Mutation to delete entry
   const deleteEntryMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest(`/api/calories/${id}`, {
-        method: "DELETE",
-      });
+      return apiRequest("DELETE", `/api/calories/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/calories"] });

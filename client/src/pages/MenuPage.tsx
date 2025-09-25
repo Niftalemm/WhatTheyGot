@@ -343,13 +343,10 @@ export default function MenuPage() {
   const saveCaloriesMutation = useMutation({
     mutationFn: async (items: CalorieItem[]) => {
       const promises = items.map(item => 
-        apiRequest('/api/calories', {
-          method: 'POST',
-          body: {
-            foodName: item.name,
-            caloriesPerServing: item.calories,
-            quantity: 1,
-          },
+        apiRequest('POST', '/api/calories', {
+          foodName: item.name,
+          caloriesPerServing: item.calories,
+          quantity: 1,
         })
       );
       return Promise.all(promises);
