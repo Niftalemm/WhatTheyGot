@@ -494,6 +494,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Validate the request body
       const validated = insertReviewSchema.parse(reviewData);
+
+      // Get the menu item to check meal period
+      const menuItem = await storage.getMenuItemById(validated.menuItemId);
+      if (!menuItem) {
+        return res.status(404).json({ 
+          error: "Menu item not found" 
+        });
+      }
+
+      // Check if meal period is currently open for reviews
+      const mealStatus = storage.isMealPeriodOpen(menuItem.mealPeriod);
+      if (!mealStatus.isOpen) {
+        return res.status(422).json({ 
+          error: mealStatus.reason,
+          nextOpening: mealStatus.nextOpening
+        });
+      }
       
       // Run content moderation on the review text
       let moderationResult = null;

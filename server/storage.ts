@@ -339,6 +339,60 @@ export class DatabaseStorage implements IStorage {
     return deletedCount;
   }
 
+  isMealPeriodOpen(mealPeriod: string): { isOpen: boolean; reason?: string; nextOpening?: string } {
+    // Get current time in America/Chicago timezone
+    const now = new Date();
+    const chicagoTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Chicago" }));
+    const hour = chicagoTime.getHours() + chicagoTime.getMinutes() / 60;
+    const dayOfWeek = chicagoTime.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    // Operating hours (same as scraper and cleanup logic)
+    const operatingHours = {
+      breakfast: { start: 7, end: 9.5 }, // 7:00 AM - 9:30 AM
+      lunch: { start: 11, end: 14 }, // 11:00 AM - 2:00 PM  
+      liteDinner: { start: 14, end: 16 }, // 2:00 PM - 4:00 PM
+      dinner: { start: 17, end: dayOfWeek === 5 ? 20 : 21 } // 5:00 PM - 9:00 PM (8 PM Friday)
+    };
+
+    const mealHours = operatingHours[mealPeriod as keyof typeof operatingHours];
+    if (!mealHours) {
+      return { isOpen: false, reason: "Invalid meal period" };
+    }
+
+    // Check if currently within operating hours
+    if (hour >= mealHours.start && hour < mealHours.end) {
+      return { isOpen: true };
+    }
+
+    // Calculate next opening time
+    let nextOpening = "";
+    const formatTime = (hourNum: number) => {
+      const hours = Math.floor(hourNum);
+      const minutes = Math.round((hourNum - hours) * 60);
+      const period = hours >= 12 ? 'PM' : 'AM';
+      const displayHour = hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours);
+      const displayMinutes = minutes === 0 ? '' : `:${minutes.toString().padStart(2, '0')}`;
+      return `${displayHour}${displayMinutes} ${period}`;
+    };
+
+    if (hour < mealHours.start) {
+      // Before opening time today
+      nextOpening = `today at ${formatTime(mealHours.start)}`;
+    } else {
+      // After closing time - next opening is tomorrow
+      nextOpening = `tomorrow at ${formatTime(mealHours.start)}`;
+    }
+
+    const periodName = mealPeriod === 'liteDinner' ? 'Lite Dinner' : 
+                      mealPeriod.charAt(0).toUpperCase() + mealPeriod.slice(1);
+                      
+    return {
+      isOpen: false,
+      reason: `${periodName} reviews are only available during serving hours (${formatTime(mealHours.start)} - ${formatTime(mealHours.end)})`,
+      nextOpening: `Reviews will be available ${nextOpening}`
+    };
+  }
+
   // Reviews
   async getReviewsForMenuItem(menuItemId: string): Promise<Review[]> {
     return await db
