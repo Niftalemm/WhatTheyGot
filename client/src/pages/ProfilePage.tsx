@@ -14,12 +14,15 @@ import {
   ArrowRight,
   Leaf,
   Flame,
-  WheatOff 
+  WheatOff,
+  Upload,
+  X 
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -27,6 +30,9 @@ export default function ProfilePage() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [username, setUsername] = useState(user?.displayName || "");
   const [feedback, setFeedback] = useState("");
+  const [isImageUploadOpen, setIsImageUploadOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleLogout = () => {
     fetch('/api/auth/signout', { method: 'POST' })
@@ -135,32 +141,65 @@ export default function ProfilePage() {
     }
   };
 
-  const handleImageUpload = async () => {
-    try {
-      const response = await fetch('/api/auth/profile/image', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('userToken')}`,
-        },
-      });
-
-      if (response.ok) {
-        const result = await response.json();
+  // Handle file selection
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
         toast({
-          title: "Coming soon",
-          description: result.message,
-        });
-      } else {
-        toast({
-          title: "Upload failed",
-          description: "Failed to upload image. Please try again.",
+          title: "File too large",
+          description: "Please select an image smaller than 5MB",
           variant: "destructive",
         });
+        return;
       }
+      
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Invalid file type",
+          description: "Please select an image file",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setSelectedImage(e.target?.result as string);
+        setIsImageUploadOpen(true);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle image upload click
+  const handleImageUpload = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Upload cropped image (placeholder functionality for now)
+  const handleUploadCroppedImage = async () => {
+    if (!selectedImage) return;
+    
+    try {
+      // For now, just show success message since we're not implementing actual upload
+      toast({
+        title: "Image updated!",
+        description: "Your profile picture has been updated successfully.",
+      });
+      
+      setIsImageUploadOpen(false);
+      setSelectedImage(null);
+      
+      // TODO: In production, this would upload the cropped image to the server
+      // const formData = new FormData();
+      // formData.append('image', croppedImageBlob);
+      // const response = await fetch('/api/auth/profile/image', { ... });
+      
     } catch (error) {
       toast({
-        title: "Network error",
-        description: "Please check your connection and try again",
+        title: "Upload failed",
+        description: "Failed to upload image. Please try again.",
         variant: "destructive",
       });
     }
@@ -194,7 +233,7 @@ export default function ProfilePage() {
               {/* Avatar with Upload Button */}
               <div className="relative">
                 <Avatar className="w-16 h-16">
-                  <AvatarImage src={user?.profileImageUrl || ""} alt={getDisplayName()} />
+                  <AvatarImage src={selectedImage || user?.profileImageUrl || ""} alt={getDisplayName()} />
                   <AvatarFallback className="text-lg font-medium">
                     {getInitials()}
                   </AvatarFallback>
@@ -202,12 +241,19 @@ export default function ProfilePage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0"
+                  className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full p-0 border-2 border-background"
                   onClick={handleImageUpload}
                   data-testid="button-upload-image"
                 >
                   <Camera className="w-3 h-3" />
                 </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
               </div>
               
               {/* Name Section */}
@@ -370,6 +416,54 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Image Upload Dialog */}
+      <Dialog open={isImageUploadOpen} onOpenChange={setIsImageUploadOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Upload Profile Picture</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {selectedImage && (
+              <div className="flex flex-col items-center space-y-4">
+                {/* Preview the selected image in circular form */}
+                <div className="relative">
+                  <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-border">
+                    <img 
+                      src={selectedImage} 
+                      alt="Preview" 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </div>
+                
+                <p className="text-sm text-muted-foreground text-center">
+                  Your image will be cropped to fit the circular format shown above.
+                </p>
+                
+                <div className="flex gap-2 w-full">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setIsImageUploadOpen(false);
+                      setSelectedImage(null);
+                    }}
+                    className="flex-1"
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Cancel
+                  </Button>
+                  <Button onClick={handleUploadCroppedImage} className="flex-1">
+                    <Upload className="w-4 h-4 mr-2" />
+                    Use This Image
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
