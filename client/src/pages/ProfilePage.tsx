@@ -60,42 +60,110 @@ export default function ProfilePage() {
       return;
     }
 
-    // Basic bad word check (would be enhanced server-side)
-    const badWords = ['admin', 'moderator', 'anonymous', 'fuck', 'shit', 'damn'];
-    if (badWords.some(word => username.toLowerCase().includes(word))) {
+    try {
+      const response = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('userToken')}`,
+        },
+        body: JSON.stringify({
+          displayName: username.trim()
+        }),
+      });
+
+      if (response.ok) {
+        setIsEditingName(false);
+        toast({
+          title: "Username updated",
+          description: "Your display name has been updated successfully.",
+        });
+        // Refresh the page to show updated username
+        window.location.reload();
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Update failed",
+          description: error.error || "Failed to update username",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
       toast({
-        title: "Username not allowed",
-        description: "Please choose a different username. Inappropriate usernames may result in account suspension.",
+        title: "Network error",
+        description: "Please check your connection and try again",
         variant: "destructive",
       });
-      return;
     }
-
-    // TODO: API call to update username
-    setIsEditingName(false);
-    toast({
-      title: "Username updated",
-      description: "Your display name has been updated successfully.",
-    });
   };
 
   const handleSubmitFeedback = async () => {
     if (!feedback.trim()) return;
 
-    // TODO: API call to send feedback to admin dashboard
-    toast({
-      title: "Feedback sent",
-      description: "Thank you for your feedback! We'll review it shortly.",
-    });
-    setFeedback("");
+    try {
+      const response = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('userToken')}`,
+        },
+        body: JSON.stringify({
+          message: feedback.trim()
+        }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Feedback sent",
+          description: "Thank you for your feedback! We'll review it shortly.",
+        });
+        setFeedback("");
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Submission failed",
+          description: error.error || "Failed to submit feedback",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Network error",
+        description: "Please check your connection and try again",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleImageUpload = () => {
-    // TODO: Implement image upload
-    toast({
-      title: "Coming soon",
-      description: "Profile picture upload will be available soon. Please note that inappropriate images will result in account suspension.",
-    });
+  const handleImageUpload = async () => {
+    try {
+      const response = await fetch('/api/auth/profile/image', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('userToken')}`,
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        toast({
+          title: "Coming soon",
+          description: result.message,
+        });
+      } else {
+        toast({
+          title: "Upload failed",
+          description: "Failed to upload image. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Network error",
+        description: "Please check your connection and try again",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -197,37 +265,45 @@ export default function ProfilePage() {
           <CardContent className="pt-6">
             <h3 className="font-medium mb-4">Quick Filters</h3>
             <div className="grid grid-cols-2 gap-3">
-              <Button variant="outline" className="justify-start h-auto p-3" data-testid="filter-vegan">
-                <Leaf className="w-4 h-4 mr-2 text-green-500" />
-                <div className="text-left">
-                  <div className="text-sm font-medium">Vegan</div>
-                  <div className="text-xs text-muted-foreground">Plant-based options</div>
-                </div>
-              </Button>
+              <Link to="/menu?filter=vegan" className="block">
+                <Button variant="outline" className="w-full justify-start h-auto p-3" data-testid="filter-vegan">
+                  <Leaf className="w-4 h-4 mr-2 text-green-500" />
+                  <div className="text-left">
+                    <div className="text-sm font-medium">Vegan</div>
+                    <div className="text-xs text-muted-foreground">Plant-based options</div>
+                  </div>
+                </Button>
+              </Link>
               
-              <Button variant="outline" className="justify-start h-auto p-3" data-testid="filter-spicy">
-                <Flame className="w-4 h-4 mr-2 text-red-500" />
-                <div className="text-left">
-                  <div className="text-sm font-medium">Spicy</div>
-                  <div className="text-xs text-muted-foreground">Heat lovers</div>
-                </div>
-              </Button>
+              <Link to="/menu?filter=spicy" className="block">
+                <Button variant="outline" className="w-full justify-start h-auto p-3" data-testid="filter-spicy">
+                  <Flame className="w-4 h-4 mr-2 text-red-500" />
+                  <div className="text-left">
+                    <div className="text-sm font-medium">Spicy</div>
+                    <div className="text-xs text-muted-foreground">Heat lovers</div>
+                  </div>
+                </Button>
+              </Link>
               
-              <Button variant="outline" className="justify-start h-auto p-3" data-testid="filter-gluten-free">
-                <WheatOff className="w-4 h-4 mr-2 text-yellow-500" />
-                <div className="text-left">
-                  <div className="text-sm font-medium">Gluten-Free</div>
-                  <div className="text-xs text-muted-foreground">Safe options</div>
-                </div>
-              </Button>
+              <Link to="/menu?filter=gluten-free" className="block">
+                <Button variant="outline" className="w-full justify-start h-auto p-3" data-testid="filter-gluten-free">
+                  <WheatOff className="w-4 h-4 mr-2 text-yellow-500" />
+                  <div className="text-left">
+                    <div className="text-sm font-medium">Gluten-Free</div>
+                    <div className="text-xs text-muted-foreground">Safe options</div>
+                  </div>
+                </Button>
+              </Link>
               
-              <Button variant="outline" className="justify-start h-auto p-3" data-testid="filter-comfort">
-                <UtensilsCrossed className="w-4 h-4 mr-2 text-blue-500" />
-                <div className="text-left">
-                  <div className="text-sm font-medium">Comfort Food</div>
-                  <div className="text-xs text-muted-foreground">Feel good meals</div>
-                </div>
-              </Button>
+              <Link to="/menu?filter=comfort" className="block">
+                <Button variant="outline" className="w-full justify-start h-auto p-3" data-testid="filter-comfort">
+                  <UtensilsCrossed className="w-4 h-4 mr-2 text-blue-500" />
+                  <div className="text-left">
+                    <div className="text-sm font-medium">Comfort Food</div>
+                    <div className="text-xs text-muted-foreground">Feel good meals</div>
+                  </div>
+                </Button>
+              </Link>
             </div>
           </CardContent>
         </Card>

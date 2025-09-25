@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueries } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useLocation, useSearch } from "wouter";
 import AppBanner from "@/components/AppBanner";
 import AdminMessages from "@/components/AdminMessages";
 import HeroSection from "@/components/HeroSection";
@@ -11,7 +12,10 @@ import ReviewModal from "@/components/ReviewModal";
 import ReportModal from "@/components/ReportModal";
 import CalorieCounter from "@/components/CalorieCounter";
 import { TabsContent } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { X, Leaf, Flame, WheatOff, UtensilsCrossed } from "lucide-react";
 import type { MenuItem, Review } from "@shared/schema";
 import breakfastImage from '@assets/generated_images/University_breakfast_spread_hero_5b900fb1.png';
 import lunchImage from '@assets/generated_images/University_lunch_spread_hero_3f701dd6.png';
@@ -68,12 +72,29 @@ interface CalorieItem {
 
 export default function MenuPage() {
   const { toast } = useToast();
+  const [location, setLocation] = useLocation();
+  const searchParams = new URLSearchParams(useSearch());
+  const activeFilter = searchParams.get('filter');
+  
   const [activeStation, setActiveStation] = useState('All');
   const [reviewModal, setReviewModal] = useState({ isOpen: false, itemName: '', itemId: '' });
   const [reportModal, setReportModal] = useState({ isOpen: false, itemName: '', itemId: '' });
   const [calorieItems, setCalorieItems] = useState<CalorieItem[]>([]);
 
   const today = new Date().toISOString().split('T')[0];
+
+  // Clear filter function
+  const clearFilter = () => {
+    setLocation('/menu');
+  };
+
+  // Filter icons and labels
+  const filterConfig = {
+    vegan: { icon: Leaf, label: 'Vegan', color: 'text-green-500' },
+    spicy: { icon: Flame, label: 'Spicy', color: 'text-red-500' },
+    'gluten-free': { icon: WheatOff, label: 'Gluten-Free', color: 'text-yellow-500' },
+    comfort: { icon: UtensilsCrossed, label: 'Comfort Food', color: 'text-blue-500' }
+  };
 
   // Initialize app with sample data
   useEffect(() => {
@@ -87,10 +108,15 @@ export default function MenuPage() {
     initApp();
   }, []);
 
-  // Fetch all menu items for today (all meal periods) - cached and won't refetch on station changes
+  // Fetch all menu items for today with optional filtering
   const { data: menuItems = [], isLoading: isLoadingMenu } = useQuery<MenuItem[]>({
-    queryKey: ['/api/menu', today],
-    queryFn: () => fetch(`/api/menu/${today}`).then(res => res.json()),
+    queryKey: ['/api/menu', today, activeFilter],
+    queryFn: () => {
+      const url = activeFilter 
+        ? `/api/menu/${today}?filter=${activeFilter}`
+        : `/api/menu/${today}`;
+      return fetch(url).then(res => res.json());
+    },
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes to prevent unnecessary refetches
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
@@ -249,9 +275,41 @@ export default function MenuPage() {
       />
 
       <div className="space-y-6 px-4 pt-6">
+        {/* Active Filter Indicator */}
+        {activeFilter && filterConfig[activeFilter as keyof typeof filterConfig] && (
+          <div className="flex items-center justify-between bg-accent/50 rounded-lg p-3 border">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                {(() => {
+                  const config = filterConfig[activeFilter as keyof typeof filterConfig];
+                  const IconComponent = config.icon;
+                  return (
+                    <>
+                      <IconComponent className={`w-4 h-4 ${config.color}`} />
+                      <span className="font-medium">Filtering by: {config.label}</span>
+                    </>
+                  );
+                })()}
+              </div>
+              <Badge variant="secondary" data-testid="badge-filtered-count">
+                {menuItems.length} items
+              </Badge>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={clearFilter}
+              data-testid="button-clear-filter"
+            >
+              <X className="w-3 h-3 mr-1" />
+              Clear Filter
+            </Button>
+          </div>
+        )}
+
         <HeroSection
-          title="MNSU Dining Center"
-          subtitle={`${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} Menu`}
+          title={activeFilter ? `${filterConfig[activeFilter as keyof typeof filterConfig]?.label || 'Filtered'} Menu` : "MNSU Dining Center"}
+          subtitle={activeFilter ? `Showing ${filterConfig[activeFilter as keyof typeof filterConfig]?.label.toLowerCase() || 'filtered'} options available today` : `${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} Menu`}
           backgroundImage={getImageForMealPeriod(getCurrentMeal().toLowerCase())}
           currentMeal={getCurrentMeal()}
           lastUpdated={new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

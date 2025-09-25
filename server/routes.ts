@@ -327,6 +327,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
+  // Helper function to check if item matches dietary filter
+  function matchesDietaryFilter(item: any, filter: string): boolean {
+    const itemName = item.itemName.toLowerCase();
+    const station = item.station.toLowerCase();
+    const allergens = (item.allergens || []).map((a: string) => a.toLowerCase());
+    
+    switch (filter) {
+      case 'vegan':
+        // Check if vegan-friendly (no dairy, meat, eggs)
+        const nonVeganAllergens = ['milk', 'dairy', 'eggs', 'cheese'];
+        const hasNonVeganAllergens = allergens.some(allergen => 
+          nonVeganAllergens.some(nonVegan => allergen.includes(nonVegan))
+        );
+        const hasVeganKeywords = itemName.includes('vegan') || 
+                                itemName.includes('plant') || 
+                                itemName.includes('vegetable');
+        const hasNonVeganKeywords = itemName.includes('chicken') || 
+                                   itemName.includes('beef') || 
+                                   itemName.includes('pork') ||
+                                   itemName.includes('fish') ||
+                                   itemName.includes('cheese') ||
+                                   itemName.includes('cream');
+        return (hasVeganKeywords || station.includes('salad')) && !hasNonVeganAllergens && !hasNonVeganKeywords;
+        
+      case 'spicy':
+        return itemName.includes('spicy') || 
+               itemName.includes('hot') || 
+               itemName.includes('jalapeño') || 
+               itemName.includes('pepper') ||
+               itemName.includes('chili') ||
+               itemName.includes('sriracha') ||
+               itemName.includes('buffalo');
+               
+      case 'gluten-free':
+        const glutenAllergens = ['wheat', 'gluten', 'barley', 'rye'];
+        return !allergens.some(allergen => 
+          glutenAllergens.some(gluten => allergen.includes(gluten))
+        ) && !itemName.includes('bread') && !itemName.includes('pasta') && !itemName.includes('pizza');
+        
+      case 'comfort':
+        return itemName.includes('mac') || 
+               itemName.includes('cheese') || 
+               itemName.includes('chicken') ||
+               itemName.includes('burger') ||
+               itemName.includes('pizza') ||
+               itemName.includes('fries') ||
+               itemName.includes('soup') ||
+               itemName.includes('sandwich') ||
+               station.includes('grill') ||
+               station.includes('comfort');
+               
+      default:
+        return true;
+    }
+  }
+
   // Menu Items Routes
   app.get("/api/menu/:date", async (req, res) => {
     try {
@@ -336,7 +392,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.set('Expires', '0');
       
       const { date } = req.params;
-      const { meal, current } = req.query;
+      const { meal, current, filter } = req.query;
       
       let menuItems = await storage.getMenuItemsByDate(date);
       
@@ -355,6 +411,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const itemMeal = item.mealPeriod === "liteDinner" ? "dinner" : item.mealPeriod;
           return itemMeal === meal;
         });
+      }
+      
+      // Apply dietary filtering if requested
+      if (filter && typeof filter === 'string') {
+        menuItems = menuItems.filter(item => matchesDietaryFilter(item, filter));
       }
       
       res.json(menuItems);
@@ -769,6 +830,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bad words filter for usernames
+  function validateUsername(username: string): { isValid: boolean; reason?: string } {
+    const cleaned = username.toLowerCase().trim();
+    
+    if (!cleaned || cleaned.length === 0) {
+      return { isValid: false, reason: "Username cannot be empty" };
+    }
+    
+    if (cleaned.length < 2 || cleaned.length > 20) {
+      return { isValid: false, reason: "Username must be between 2-20 characters" };
+    }
+    
+    // Reserved and admin words
+    const reservedWords = ['admin', 'administrator', 'moderator', 'mod', 'anonymous', 'user', 'system', 'root', 'support'];
+    if (reservedWords.some(word => cleaned.includes(word))) {
+      return { isValid: false, reason: "Username contains reserved words. Please choose a different username." };
+    }
+    
+    // Basic profanity filter 
+    const badWords = ['fuck', 'shit', 'damn', 'bitch', 'asshole', 'bastard', 'crap', 'piss', 'cock', 'dick', 'pussy', 'whore', 'slut'];
+    if (badWords.some(word => cleaned.includes(word))) {
+      return { isValid: false, reason: "Inappropriate username. Please choose a different username. Accounts with inappropriate usernames may be banned." };
+    }
+    
+    return { isValid: true };
+  }
+
   app.put("/api/auth/profile", requireUser, async (req: any, res: Response) => {
     try {
       const { displayName, bio } = req.body;
@@ -776,6 +864,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Parse displayName into firstName and lastName if provided
       let updateData: any = { bio };
       if (displayName !== undefined) {
+        // Validate username first
+        const validation = validateUsername(displayName);
+        if (!validation.isValid) {
+          return res.status(400).json({ error: validation.reason });
+        }
+        
         const { firstName, lastName } = parseDisplayName(displayName);
         updateData.firstName = firstName;
         updateData.lastName = lastName;
@@ -800,6 +894,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating user profile:", error);
       res.status(500).json({ error: "Failed to update profile" });
+    }
+  });
+
+  // Profile image upload endpoint
+  app.post("/api/auth/profile/image", requireUser, async (req: any, res: Response) => {
+    try {
+      // TODO: For now, just acknowledge the request. 
+      // In production, this would handle actual image upload to a service like AWS S3 or Replit Object Storage
+      res.json({
+        message: "Image upload will be available soon. Please note that inappropriate images may result in account suspension.",
+        imageUrl: null // Will return actual URL when implemented
+      });
+    } catch (error) {
+      console.error("Error uploading profile image:", error);
+      res.status(500).json({ error: "Failed to upload image" });
+    }
+  });
+
+  // User feedback submission endpoint  
+  app.post("/api/feedback", requireUser, async (req: any, res: Response) => {
+    try {
+      const { message } = req.body;
+      
+      if (!message || message.trim().length === 0) {
+        return res.status(400).json({ error: "Feedback message is required" });
+      }
+      
+      if (message.trim().length > 1000) {
+        return res.status(400).json({ error: "Feedback message is too long (max 1000 characters)" });
+      }
+      
+      // TODO: Store feedback in database table for admin dashboard
+      // For now, just log it
+      console.log(`User Feedback from ${req.user!.email} (${req.user!.displayName}): ${message.trim()}`);
+      
+      res.json({
+        message: "Thank you for your feedback! We'll review it shortly.",
+        submittedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Error submitting feedback:", error);
+      res.status(500).json({ error: "Failed to submit feedback" });
     }
   });
 
