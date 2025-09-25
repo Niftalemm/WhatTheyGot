@@ -85,8 +85,9 @@ const isMealPeriodExpired = (mealPeriod: string): boolean => {
       return hour >= operatingHours.breakfast.end;
     case 'lunch':
       return hour >= operatingHours.lunch.end;
-    case 'dinner':
     case 'liteDinner':
+      return hour >= operatingHours.liteDinner.end;
+    case 'dinner':
       return hour >= operatingHours.dinner.end;
     default:
       return false;
