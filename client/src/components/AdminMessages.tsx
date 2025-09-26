@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Info, AlertTriangle, AlertCircle, Megaphone } from "lucide-react";
+import { Info, AlertTriangle, AlertCircle, Megaphone, BarChart3 } from "lucide-react";
 import type { AdminMessage } from "@shared/schema";
 
 interface AdminMessagesProps {
@@ -14,6 +14,7 @@ const messageTypeIcons = {
   alert: AlertTriangle,
   info: Info,
   warning: AlertCircle,
+  poll: BarChart3,
 };
 
 const messageTypeColors = {
@@ -21,6 +22,7 @@ const messageTypeColors = {
   alert: "destructive",
   info: "secondary", 
   warning: "destructive",
+  poll: "default",
 } as const;
 
 export default function AdminMessages({ page, className }: AdminMessagesProps) {
@@ -37,9 +39,9 @@ export default function AdminMessages({ page, className }: AdminMessagesProps) {
   // Filter messages based on page if specified
   const filteredMessages = page 
     ? messages.filter(msg => 
-        msg.showOn.includes(page) || 
-        msg.showOn.includes('all') || 
-        msg.showOn.length === 0
+        msg.showOn?.includes(page) || 
+        msg.showOn?.includes('all') || 
+        !msg.showOn || msg.showOn.length === 0
       )
     : messages;
 

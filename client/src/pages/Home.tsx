@@ -94,8 +94,8 @@ export default function Home() {
 
     // Voting mutation
     const voteMutation = useMutation({
-      mutationFn: async (optionId: string) => {
-        return apiRequest('POST', `/api/polls/${message.id}/vote`, { optionId });
+      mutationFn: async (selectedOption: string) => {
+        return apiRequest('POST', `/api/polls/${message.id}/vote`, { selectedOption });
       },
       onSuccess: () => {
         setHasVoted(true);
@@ -173,8 +173,8 @@ export default function Home() {
                   <input
                     type="radio"
                     name={`poll-${message.id}`}
-                    value={option.id}
-                    checked={selectedOption === option.id}
+                    value={option.optionText}
+                    checked={selectedOption === option.optionText}
                     onChange={(e) => setSelectedOption(e.target.value)}
                     className="text-green-600"
                     data-testid={`radio-poll-option-${option.id}`}
