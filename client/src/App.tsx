@@ -26,32 +26,34 @@ import NotFound from "@/pages/not-found";
 import { useState } from "react";
 import { useLocation } from "wouter";
 
-function MainApp() {
+function UserLayout({ children }: { children: React.ReactNode }) {
   const [activeTab, setActiveTab] = useState('menu');
+  const [location] = useLocation();
 
-  const renderPage = () => {
-    switch (activeTab) {
-      case 'menu':
-        return <MenuPage />;
-      case 'reviews':
-        return <ReviewsPage />;
-      case 'add':
-        // For now, just show menu page with a console message
-        console.log('Add review functionality would be implemented here');
-        return <MenuPage />;
-      case 'profile':
-        return <ProfilePage />;
-      default:
-        return <MenuPage />;
-    }
+  // Determine active tab based on current location
+  const determineActiveTab = () => {
+    if (location === '/' || location === '/menu') return 'menu';
+    if (location === '/reviews') return 'reviews';
+    if (location === '/profile' || location.startsWith('/messages')) return 'profile';
+    return 'menu';
+  };
+
+  const currentTab = determineActiveTab();
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    // Navigate to the appropriate page
+    if (tab === 'menu') window.location.href = '/';
+    if (tab === 'reviews') window.location.href = '/reviews';
+    if (tab === 'profile') window.location.href = '/profile';
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <main className="min-h-screen pb-20">
-        {renderPage()}
+    <div className="flex flex-col min-h-screen bg-background">
+      <main className="flex-1 pb-20">
+        {children}
       </main>
-      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <BottomNav activeTab={currentTab} onTabChange={handleTabChange} />
     </div>
   );
 }
@@ -89,27 +91,27 @@ function Router() {
     );
   }
 
-  // Show protected content for logged in users
+  // Show protected content for logged in users with BottomNav
   return (
-    <Switch>
-      {/* Individual menu item pages without bottom navigation */}
-      <Route path="/menu-item/:itemId">
-        {({ itemId }) => <MenuItemPage itemId={itemId} />}
-      </Route>
-      
-      {/* Messaging pages without bottom navigation */}
-      <Route path="/messages/new" component={NewMessagePage} />
-      <Route path="/messages/:threadId">
-        {({ threadId }) => <ThreadDetailPage threadId={threadId} />}
-      </Route>
-      
-      {/* Protected routes for authenticated users */}
-      <Route path="/" component={MainApp} />
-      <Route path="/menu" component={MainApp} />
-      <Route path="/reviews" component={ReviewsPage} />
-      <Route path="/profile" component={ProfilePage} />
-      <Route component={NotFound} />
-    </Switch>
+    <UserLayout>
+      <Switch>
+        {/* All user routes now have bottom navigation */}
+        <Route path="/menu-item/:itemId">
+          {({ itemId }) => <MenuItemPage itemId={itemId} />}
+        </Route>
+        
+        <Route path="/messages/new" component={NewMessagePage} />
+        <Route path="/messages/:threadId">
+          {({ threadId }) => <ThreadDetailPage threadId={threadId} />}
+        </Route>
+        
+        <Route path="/" component={MenuPage} />
+        <Route path="/menu" component={MenuPage} />
+        <Route path="/reviews" component={ReviewsPage} />
+        <Route path="/profile" component={ProfilePage} />
+        <Route component={NotFound} />
+      </Switch>
+    </UserLayout>
   );
 }
 

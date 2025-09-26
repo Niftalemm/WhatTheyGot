@@ -44,7 +44,7 @@ import {
   messages,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, or, isNull, sql } from "drizzle-orm";
+import { eq, desc, and, gte, or, isNull, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // User operations for Replit Auth
@@ -990,50 +990,42 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserMessageThreads(userId?: string, deviceId?: string): Promise<(MessageThread & { lastMessage?: Message })[]> {
-    // Build the base query
-    let query = db.select().from(messageThreads);
+    // Build the base query for threads
+    const baseQuery = db.select().from(messageThreads);
 
-    // Only add where clause if we have filters
+    // Apply filters and get threads
+    let threads: MessageThread[];
     if (userId) {
-      query = query.where(eq(messageThreads.userId, userId));
+      threads = await baseQuery.where(eq(messageThreads.userId, userId)).orderBy(desc(messageThreads.lastMessageAt));
     } else if (deviceId) {
-      query = query.where(eq(messageThreads.deviceId, deviceId));
-    }
-    // If neither userId nor deviceId is provided, get all threads (for admin)
-
-    const threads = await query.orderBy(desc(messageThreads.lastMessageAt));
-
-    // Get the last message for each thread (optimized to avoid N+1 queries)
-    const threadIds = threads.map(t => t.id);
-    
-    if (threadIds.length === 0) {
-      return threads.map(thread => ({ ...thread, lastMessage: undefined }));
+      threads = await baseQuery.where(eq(messageThreads.deviceId, deviceId)).orderBy(desc(messageThreads.lastMessageAt));
+    } else {
+      // If neither userId nor deviceId is provided, get all threads (for admin)
+      threads = await baseQuery.orderBy(desc(messageThreads.lastMessageAt));
     }
 
-    // Get latest message for each thread in a single query
-    const latestMessages = await db
-      .select({
-        threadId: messages.threadId,
-        message: messages,
+    if (threads.length === 0) {
+      return [];
+    }
+
+    // For each thread, get the latest message (simpler approach)
+    const threadsWithMessages = await Promise.all(
+      threads.map(async (thread) => {
+        const [lastMessage] = await db
+          .select()
+          .from(messages)
+          .where(eq(messages.threadId, thread.id))
+          .orderBy(desc(messages.createdAt))
+          .limit(1);
+
+        return {
+          ...thread,
+          lastMessage: lastMessage || undefined,
+        };
       })
-      .from(messages)
-      .where(sql`${messages.threadId} = ANY(${threadIds}) AND ${messages.createdAt} = (
-        SELECT MAX(m2.created_at) 
-        FROM messages m2 
-        WHERE m2.thread_id = ${messages.threadId}
-      )`);
+    );
 
-    // Create a map for quick lookup
-    const lastMessageMap = new Map();
-    latestMessages.forEach(({ threadId, message }) => {
-      lastMessageMap.set(threadId, message);
-    });
-
-    // Combine threads with their last messages
-    return threads.map(thread => ({
-      ...thread,
-      lastMessage: lastMessageMap.get(thread.id) || undefined,
-    }));
+    return threadsWithMessages;
   }
 
   async getMessageThread(id: string): Promise<MessageThread | undefined> {

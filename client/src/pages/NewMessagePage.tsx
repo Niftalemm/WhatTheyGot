@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Send } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { api } from "@/lib/queryClient";
 
 export default function NewMessagePage() {
   const [, setLocation] = useLocation();
@@ -20,7 +20,7 @@ export default function NewMessagePage() {
 
   const createThreadMutation = useMutation({
     mutationFn: (data: { subject: string; content: string }) => 
-      apiRequest("POST", "/api/threads", data),
+      api('/api/threads', { method: 'POST', data: { subject: data.subject, content: data.content }, credentials: 'include' }),
     onSuccess: (data) => {
       toast({
         title: "Message sent",
@@ -28,7 +28,7 @@ export default function NewMessagePage() {
       });
       
       // Invalidate threads list to show the new thread
-      queryClient.invalidateQueries({ queryKey: ["/api/threads"] });
+      queryClient.invalidateQueries({ queryKey: ["threads"] });
       
       // Navigate to the new thread - API returns { thread, message }
       setLocation(`/messages/${data.thread.id}`);

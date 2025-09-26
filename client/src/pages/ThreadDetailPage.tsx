@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ArrowLeft, Send, MessageSquare, CheckCircle, AlertCircle, Ban, Clock } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { api } from "@/lib/queryClient";
 
 interface Message {
   id: string;
@@ -80,7 +80,7 @@ export default function ThreadDetailPage({ threadId }: ThreadDetailPageProps) {
 
   const replyMutation = useMutation({
     mutationFn: (content: string) => 
-      apiRequest("POST", `/api/threads/${threadId}/messages`, { content }),
+      api(`/api/threads/${threadId}/reply`, { method: 'POST', data: { text: content }, credentials: 'include' }),
     onSuccess: (data) => {
       toast({
         title: "Reply sent",
@@ -90,9 +90,7 @@ export default function ThreadDetailPage({ threadId }: ThreadDetailPageProps) {
       setReplyContent("");
       
       // Invalidate queries to refresh the conversation
-      queryClient.invalidateQueries({ queryKey: ["/api/threads", threadId, "messages"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/threads", threadId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/threads"] });
+      queryClient.invalidateQueries({ queryKey: ["threads"] });
     },
     onError: (error: any) => {
       toast({
