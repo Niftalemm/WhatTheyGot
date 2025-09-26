@@ -447,16 +447,9 @@ export default function AdminMessages() {
                     <div className="text-center py-8">
                       <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                       <h3 className="text-lg font-medium mb-2">No messages yet</h3>
-                      <p className="text-muted-foreground mb-4">
-                        Create your first message to communicate with students
+                      <p className="text-muted-foreground">
+                        Create your first message to communicate with students using the "New Message" button above
                       </p>
-                      <Button 
-                        onClick={() => setShowForm(true)}
-                        data-testid="button-create-first-message"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create First Message
-                      </Button>
                     </div>
                   )}
                 </div>
