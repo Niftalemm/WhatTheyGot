@@ -85,7 +85,7 @@ export default function Home() {
         return data;
       },
       enabled: message.type === 'poll',
-      refetchInterval: hasVoted ? 3000 : false, // Only poll for results if already voted
+      refetchInterval: 3000, // Always poll for results to keep them fresh
     });
 
     // Voting mutation
@@ -98,7 +98,7 @@ export default function Home() {
         refetchResults();
         toast({
           title: 'Vote Recorded!',
-          description: 'Your vote has been counted.',
+          description: 'Your vote has been counted. You can change it anytime before results are revealed.',
         });
       },
       onError: () => {
@@ -111,7 +111,7 @@ export default function Home() {
     });
 
     const handleVote = () => {
-      if (selectedOption && !hasVoted) {
+      if (selectedOption) {
         voteMutation.mutate(selectedOption);
       }
     };
@@ -149,13 +149,13 @@ export default function Home() {
                 );
               })}
             </div>
-          ) : hasVoted ? (
-            <div className="text-center py-4">
-              <p className="text-sm text-green-600 dark:text-green-400 mb-2">✓ Your vote has been recorded!</p>
-              <p className="text-xs text-muted-foreground">Waiting for results to be revealed...</p>
-            </div>
           ) : (
             <div className="space-y-2">
+              {hasVoted && (
+                <p className="text-xs text-green-600 dark:text-green-400 mb-2">
+                  ✓ You have voted on this poll. You can change your vote below.
+                </p>
+              )}
               {pollResults?.options?.map((option: any) => (
                 <label key={option.id} className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-green-100 dark:hover:bg-green-900">
                   <input
@@ -177,7 +177,7 @@ export default function Home() {
                 className="mt-3 bg-green-600 hover:bg-green-700"
                 data-testid="button-vote-poll"
               >
-                {voteMutation.isPending ? 'Voting...' : 'Vote'}
+                {voteMutation.isPending ? 'Voting...' : hasVoted ? 'Change Vote' : 'Vote'}
               </Button>
             </div>
           )}
