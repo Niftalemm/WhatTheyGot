@@ -18,6 +18,8 @@ import AdminMenu from "@/pages/AdminMenu";
 import AdminMessages from "@/pages/AdminMessages";
 import AdminReviews from "@/pages/AdminReviews";
 import AdminModeration from "@/pages/AdminModeration";
+import AdminThreads from "@/pages/AdminThreads";
+import AdminThreadDetailPage from "@/pages/AdminThreadDetailPage";
 import NewMessagePage from "@/pages/NewMessagePage";
 import ThreadDetailPage from "@/pages/ThreadDetailPage";
 import NotFound from "@/pages/not-found";
@@ -66,6 +68,10 @@ function Router() {
         <Route path="/admin/dashboard" component={AdminDashboard} />
         <Route path="/admin/menu" component={AdminMenu} />
         <Route path="/admin/messages" component={AdminMessages} />
+        <Route path="/admin/threads" component={AdminThreads} />
+        <Route path="/admin/threads/:threadId">
+          {({ threadId }) => <AdminThreadDetailPage threadId={threadId} />}
+        </Route>
         <Route path="/admin/reviews" component={AdminReviews} />
         <Route path="/admin/moderation" component={AdminModeration} />
         <Route component={NotFound} />
