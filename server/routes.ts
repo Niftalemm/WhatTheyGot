@@ -1062,14 +1062,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { threadId } = req.params;
       const userId = req.user.claims.sub;
+      const isAdmin = req.user.claims.role === 'admin';
 
       const thread = await storage.getMessageThread(threadId);
       if (!thread) {
         return res.status(404).json({ error: "Thread not found" });
       }
 
-      // Verify user owns this thread
-      if (thread.userId !== userId) {
+      // Allow access if user owns thread OR user is admin
+      if (!isAdmin && thread.userId !== userId) {
         return res.status(403).json({ error: "Access denied" });
       }
 
@@ -1085,21 +1086,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { threadId } = req.params;
       const userId = req.user.claims.sub;
+      const isAdmin = req.user.claims.role === 'admin';
 
-      // Verify user owns this thread
+      // Verify user owns this thread OR user is admin
       const thread = await storage.getMessageThread(threadId);
       if (!thread) {
         return res.status(404).json({ error: "Thread not found" });
       }
 
-      if (thread.userId !== userId) {
+      if (!isAdmin && thread.userId !== userId) {
         return res.status(403).json({ error: "Access denied" });
       }
 
       const messages = await storage.getThreadMessages(threadId);
       
-      // Mark thread as read by user
-      await storage.markThreadReadByUser(threadId);
+      // Mark thread as read by user (only if not admin)
+      if (!isAdmin) {
+        await storage.markThreadReadByUser(threadId);
+      }
 
       res.json(messages);
     } catch (error) {
@@ -1108,7 +1112,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add message to thread (user reply)
+  // Add message to thread (user reply) - /messages endpoint
   app.post("/api/threads/:threadId/messages", isAuthenticated, async (req: any, res: Response) => {
     try {
       const { threadId } = req.params;
@@ -1166,6 +1170,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       res.status(500).json({ error: "Failed to send message" });
+    }
+  });
+
+  // Add message to thread (user reply) - /reply endpoint
+  app.post("/api/threads/:threadId/reply", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const { threadId } = req.params;
+      const { text } = req.body; // Frontend sends 'text' not 'content'
+      const userId = req.user.claims.sub;
+
+      if (!text || text.trim().length === 0) {
+        return res.status(400).json({ error: "Message content is required" });
+      }
+
+      if (text.length > 2000) {
+        return res.status(400).json({ error: "Message is too long (max 2000 characters)" });
+      }
+
+      // Verify user owns this thread
+      const thread = await storage.getMessageThread(threadId);
+      if (!thread) {
+        return res.status(404).json({ error: "Thread not found" });
+      }
+
+      if (thread.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Allow replies when status = open and user is not blocked
+      if (thread.status === "blocked") {
+        return res.status(403).json({ error: "You are not allowed to reply to this thread" });
+      }
+
+      if (thread.status === "resolved") {
+        // Allow replies to resolved threads, which will reopen them
+      }
+
+      // Create message
+      const messageData = {
+        threadId,
+        content: text.trim(),
+        senderUserId: userId,
+        isFromAdmin: false,
+      };
+
+      const message = await storage.createMessage(messageData);
+
+      // Update thread status to open if it was resolved
+      if (thread.status === "resolved") {
+        await storage.updateMessageThread(threadId, { 
+          status: "open",
+          unreadByAdmin: true, // Mark as unread for admin when user replies
+        });
+      }
+
+      res.status(201).json({ 
+        message,
+        success: "Your reply has been sent." 
+      });
+    } catch (error: any) {
+      console.error("Error creating reply:", error);
+      if (error.name === "ZodError") {
+        return res.status(400).json({ 
+          error: "Invalid message data", 
+          details: error.errors 
+        });
+      }
+      res.status(500).json({ error: "Failed to send reply" });
     }
   });
 
