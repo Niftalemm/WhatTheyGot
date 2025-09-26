@@ -181,27 +181,30 @@ export default function AdminModeration() {
 
   return (
     <div className="container mx-auto p-6 space-y-6" data-testid="admin-moderation-container">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setLocation("/admin/dashboard")}
             data-testid="button-back"
+            className="shrink-0"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
+            <ArrowLeft className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Back to Dashboard</span>
+            <span className="sm:hidden">Back</span>
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold" data-testid="page-title">Content Moderation</h1>
-            <p className="text-muted-foreground">
-              Review flagged content and manage user bans
-            </p>
-          </div>
+          <Badge variant="outline" data-testid="pending-count" className="shrink-0">
+            <span className="hidden sm:inline">{(pendingReviews as Review[]).length} pending reviews</span>
+            <span className="sm:hidden">{(pendingReviews as Review[]).length} pending</span>
+          </Badge>
         </div>
-        <Badge variant="outline" data-testid="pending-count">
-          {(pendingReviews as Review[]).length} pending reviews
-        </Badge>
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold" data-testid="page-title">Content Moderation</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">
+            Review flagged content and manage user bans
+          </p>
+        </div>
       </div>
 
       <Tabs defaultValue="pending" className="w-full">
