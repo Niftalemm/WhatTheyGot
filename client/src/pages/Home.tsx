@@ -57,7 +57,15 @@ export default function Home() {
   // Query to get active messages for home page
   const { data: messages, isLoading: messagesLoading } = useQuery({
     queryKey: ['home-messages'],
-    queryFn: () => fetch('/api/messages/active?showOn=all,home').then(res => res.json()),
+    queryFn: () => fetch('/api/messages').then(res => res.json()),
+  });
+
+  // Debug messages data
+  console.log('Home messages debug:', {
+    messages,
+    messagesLoading,
+    messagesLength: messages?.length,
+    messagesType: typeof messages
   });
 
   // Poll voting component for Home page
@@ -373,15 +381,36 @@ export default function Home() {
             </Card>
 
             {/* Admin Messages & Polls */}
-            {messagesQuery.data && messagesQuery.data.length > 0 && (
+            {messages && messages.length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle>Campus Updates</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {messagesQuery.data
-                    .filter((message: any) => message.isActive && 
-                      (message.showOn?.includes('all') || message.showOn?.includes('home')))
+                  {messages
+                    .filter((message: any) => {
+                      console.log('Message filtering debug:', {
+                        messageId: message.id,
+                        isActive: message.isActive,
+                        showOn: message.showOn,
+                        showOnType: typeof message.showOn,
+                        showOnParsed: typeof message.showOn === 'string' ? JSON.parse(message.showOn) : message.showOn
+                      });
+                      
+                      // Parse showOn if it's a string (double-encoded JSON)
+                      let showOnArray = message.showOn;
+                      if (typeof showOnArray === 'string') {
+                        try {
+                          showOnArray = JSON.parse(showOnArray);
+                        } catch (e) {
+                          console.error('Error parsing showOn:', e);
+                          showOnArray = [];
+                        }
+                      }
+                      
+                      return message.isActive && 
+                        (showOnArray?.includes('all') || showOnArray?.includes('home'));
+                    })
                     .map((message: any) => (
                       <div key={message.id}>
                         {message.type === 'poll' ? (
