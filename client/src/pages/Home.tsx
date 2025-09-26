@@ -127,7 +127,9 @@ export default function Home() {
       resultsRevealed: message.resultsRevealed,
       hasVoted,
       pollResults,
-      optionsLength: pollResults?.options?.length
+      optionsLength: pollResults?.options?.length,
+      pollOptionsData: pollResults?.options,
+      willShowOptions: !message.resultsRevealed && pollResults?.options?.length > 0
     });
 
     return (
@@ -369,6 +371,47 @@ export default function Home() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Admin Messages & Polls */}
+            {messagesQuery.data && messagesQuery.data.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Campus Updates</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {messagesQuery.data
+                    .filter((message: any) => message.isActive && 
+                      (message.showOn?.includes('all') || message.showOn?.includes('home')))
+                    .map((message: any) => (
+                      <div key={message.id}>
+                        {message.type === 'poll' ? (
+                          <HomePollDisplay message={message} />
+                        ) : (
+                          <div className={`p-4 rounded-lg border ${
+                            message.type === 'alert' ? 'bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800' :
+                            message.type === 'warning' ? 'bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800' :
+                            'bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800'
+                          }`}>
+                            <div className="flex items-start gap-3">
+                              <div className={`p-1 rounded ${
+                                message.type === 'alert' ? 'bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400' :
+                                message.type === 'warning' ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-600 dark:text-yellow-400' :
+                                'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
+                              }`}>
+                                {getMessageIcon(message.type)}
+                              </div>
+                              <div className="flex-1">
+                                <h4 className="font-semibold mb-1">{message.title}</h4>
+                                <p className="text-sm text-muted-foreground">{message.content}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Recent Activity */}
             <Card>
