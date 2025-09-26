@@ -1290,6 +1290,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get specific thread details (admin only)
+  app.get("/api/admin/threads/:threadId", requireAdmin, async (req: AdminRequest, res: Response) => {
+    try {
+      const { threadId } = req.params;
+
+      const thread = await storage.getMessageThread(threadId);
+      if (!thread) {
+        return res.status(404).json({ error: "Thread not found" });
+      }
+
+      res.json(thread);
+    } catch (error) {
+      console.error("Error fetching admin thread:", error);
+      res.status(500).json({ error: "Failed to fetch thread" });
+    }
+  });
+
+  // Get messages for a thread (admin only)
+  app.get("/api/admin/threads/:threadId/messages", requireAdmin, async (req: AdminRequest, res: Response) => {
+    try {
+      const { threadId } = req.params;
+
+      const thread = await storage.getMessageThread(threadId);
+      if (!thread) {
+        return res.status(404).json({ error: "Thread not found" });
+      }
+
+      const messages = await storage.getThreadMessages(threadId);
+      
+      // Mark thread as read by admin
+      await storage.markThreadReadByAdmin(threadId);
+
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching admin thread messages:", error);
+      res.status(500).json({ error: "Failed to fetch messages" });
+    }
+  });
+
   // Admin reply to thread
   app.post("/api/admin/threads/:threadId/messages", requireAdmin, async (req: AdminRequest, res: Response) => {
     try {
