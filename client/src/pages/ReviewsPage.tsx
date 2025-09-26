@@ -192,9 +192,9 @@ export default function ReviewsPage() {
                       return null;
                     })()}
                     <AvatarFallback className="text-sm font-medium">
-                      {review.user 
-                        ? getInitials(review.user.firstName, review.user.lastName)
-                        : "AU"}
+                      {review.user?.displayName?.substring(0, 2).toUpperCase() || 
+                       (review.user ? getInitials(review.user.firstName, review.user.lastName) : null) ||
+                       "??"}
                     </AvatarFallback>
                   </Avatar>
                   
@@ -202,9 +202,9 @@ export default function ReviewsPage() {
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-sm" data-testid={`text-reviewer-${review.id}`}>
-                          {review.user 
-                            ? computeDisplayName(review.user.firstName, review.user.lastName)
-                            : "Anonymous User"}
+                          {review.user?.displayName || 
+                           (review.user ? computeDisplayName(review.user.firstName, review.user.lastName) : null) ||
+                           "Anonymous"}
                         </span>
                         <div className="flex items-center gap-1">
                           {[...Array(5)].map((_, i) => (

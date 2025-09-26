@@ -242,12 +242,12 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
 
   // Transform reviews for display with real user data
   const transformReview = (review: Review & { user?: User }) => {
-    const displayName = review.user
-      ? computeDisplayName(review.user.firstName, review.user.lastName)
-      : "Anonymous User";
-    const initials = review.user
-      ? getInitials(review.user.firstName, review.user.lastName)
-      : "AU";
+    const displayName = review.user?.displayName || 
+                       (review.user ? computeDisplayName(review.user.firstName, review.user.lastName) : null) ||
+                       "Anonymous User";
+    const initials = review.user?.displayName?.substring(0, 2).toUpperCase() ||
+                    (review.user ? getInitials(review.user.firstName, review.user.lastName) : null) ||
+                    "AU";
 
     return {
       id: review.id,
