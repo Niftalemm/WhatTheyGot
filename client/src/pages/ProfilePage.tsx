@@ -328,15 +328,9 @@ export default function ProfilePage() {
           <CardContent className="pt-6">
             <div className="space-y-3">
               <Link to="/menu" className="block">
-                <Button variant="outline" className="w-full justify-between h-auto p-4" data-testid="button-browse-today">
-                  <div className="flex items-center gap-3">
-                    <UtensilsCrossed className="w-5 h-5" />
-                    <div className="text-left">
-                      <div className="font-medium">Browse Today</div>
-                      <div className="text-sm text-muted-foreground">See what's available now</div>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-4 h-4" />
+                <Button variant="outline" className="w-full" data-testid="button-menu">
+                  <UtensilsCrossed className="w-4 h-4 mr-2" />
+                  Menu
                 </Button>
               </Link>
               
