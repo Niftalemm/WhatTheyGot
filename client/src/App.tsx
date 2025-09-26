@@ -28,7 +28,7 @@ import { useLocation } from "wouter";
 
 function UserLayout({ children }: { children: React.ReactNode }) {
   const [activeTab, setActiveTab] = useState('menu');
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
 
   // Determine active tab based on current location
   const determineActiveTab = () => {
@@ -43,9 +43,9 @@ function UserLayout({ children }: { children: React.ReactNode }) {
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
     // Navigate to the appropriate page
-    if (tab === 'menu') window.location.href = '/';
-    if (tab === 'reviews') window.location.href = '/reviews';
-    if (tab === 'profile') window.location.href = '/profile';
+    if (tab === 'menu') setLocation('/');
+    if (tab === 'reviews') setLocation('/reviews');
+    if (tab === 'profile') setLocation('/profile');
   };
 
   return (
