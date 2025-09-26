@@ -1,5 +1,6 @@
 import type { Express, Request, Response } from "express";
 import express from "express";
+import cors from "cors";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertReviewSchema, insertReportSchema, insertAdminMessageSchema, insertMenuItemSchema, insertUserSchema, insertReviewReportSchema, insertCalorieEntrySchema, insertPollVoteSchema, insertMessageThreadSchema, insertMessageSchema, reviews, bannedDevices, users, User } from "@shared/schema";
@@ -192,6 +193,29 @@ function requireAdmin(req: AdminRequest, res: any, next: any) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Configure CORS for Replit Spock domains with credentials support
+  const isDev = process.env.NODE_ENV === 'development';
+  
+  if (isDev) {
+    // In development, allow all origins with credentials
+    app.use(cors({
+      origin: true,
+      credentials: true,
+      optionsSuccessStatus: 200,
+    }));
+  } else {
+    // In production, only allow specific Replit domains
+    const allowedOrigins = process.env.REPLIT_DOMAINS 
+      ? process.env.REPLIT_DOMAINS.split(',').map(domain => `https://${domain}`)
+      : [];
+    
+    app.use(cors({
+      origin: allowedOrigins,
+      credentials: true,
+      optionsSuccessStatus: 200,
+    }));
+  }
+
   // Serve static files for uploaded menu item photos
   const uploadsStaticPath = path.join(process.cwd(), 'uploads');
   app.use('/uploads', express.static(uploadsStaticPath));
