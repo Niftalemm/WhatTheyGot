@@ -220,6 +220,40 @@ export default function AdminThreadDetailPage({ threadId }: AdminThreadDetailPag
     },
   });
 
+  // User status update mutation
+  const userStatusMutation = useMutation({
+    mutationFn: async (accountStatus: string) => {
+      if (!thread?.user?.id) {
+        throw new Error('No user ID available');
+      }
+      const response = await fetch(`/api/admin/users/${thread.user.id}/status`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ accountStatus }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update user status');
+      }
+      return response.json();
+    },
+    onSuccess: (data, accountStatus) => {
+      toast({
+        title: "User status updated",
+        description: `User account status changed to ${accountStatus}.`,
+      });
+      
+      // Invalidate queries to refresh user data
+      queryClient.invalidateQueries({ queryKey: ["admin-thread", threadId] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to update user status",
+        description: error.message || "Please try again later",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleReply = (e: React.FormEvent) => {
     e.preventDefault();
     if (replyContent.trim()) {
@@ -229,6 +263,10 @@ export default function AdminThreadDetailPage({ threadId }: AdminThreadDetailPag
 
   const handleStatusChange = (newStatus: string) => {
     statusMutation.mutate(newStatus);
+  };
+
+  const handleUserStatusChange = (newAccountStatus: string) => {
+    userStatusMutation.mutate(newAccountStatus);
   };
 
   if (threadLoading || messagesLoading) {
@@ -383,6 +421,22 @@ export default function AdminThreadDetailPage({ threadId }: AdminThreadDetailPag
                           </div>
                         );
                       })()}
+                      
+                      {/* Admin status change dropdown */}
+                      <Select 
+                        value={thread.user.accountStatus} 
+                        onValueChange={handleUserStatusChange}
+                        disabled={userStatusMutation.isPending}
+                      >
+                        <SelectTrigger className="w-32" data-testid="select-user-status">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="blocked">Blocked</SelectItem>
+                          <SelectItem value="suspended">Suspended</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">

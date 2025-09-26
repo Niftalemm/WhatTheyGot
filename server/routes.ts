@@ -1397,6 +1397,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update user account status (admin only)
+  app.patch("/api/admin/users/:userId/status", requireAdmin, async (req: AdminRequest, res: Response) => {
+    try {
+      const { userId } = req.params;
+      const { accountStatus } = req.body;
+
+      // Validate account status
+      if (!accountStatus || !["active", "blocked", "suspended"].includes(accountStatus)) {
+        return res.status(400).json({ error: "Valid account status is required (active, blocked, suspended)" });
+      }
+
+      // Check if user exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      await storage.updateUser(userId, { accountStatus });
+      res.json({ success: `User account status updated to ${accountStatus}` });
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      res.status(500).json({ error: "Failed to update user status" });
+    }
+  });
+
   // Simplified review reporting route (works without authentication for now)
   app.post("/api/review-reports", async (req, res) => {
     try {
