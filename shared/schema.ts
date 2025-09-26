@@ -24,6 +24,7 @@ export const users = pgTable("users", {
   bio: text("bio"),
   profileImageUrl: varchar("profile_image_url"),
   isVerified: boolean("is_verified").default(false),
+  accountStatus: text("account_status").default("active"), // active, blocked, suspended
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

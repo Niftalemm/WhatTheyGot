@@ -144,6 +144,7 @@ export interface IStorage {
   createMessageThread(thread: InsertMessageThread): Promise<MessageThread>;
   getUserMessageThreads(userId?: string, deviceId?: string): Promise<(MessageThread & { lastMessage?: Message })[]>;
   getMessageThread(id: string): Promise<MessageThread | undefined>;
+  getMessageThreadWithUser(id: string): Promise<(MessageThread & { user?: User }) | undefined>;
   updateMessageThread(id: string, updates: Partial<MessageThread>): Promise<void>;
   markThreadReadByUser(threadId: string): Promise<void>;
   markThreadReadByAdmin(threadId: string): Promise<void>;
@@ -1031,6 +1032,62 @@ export class DatabaseStorage implements IStorage {
   async getMessageThread(id: string): Promise<MessageThread | undefined> {
     const [thread] = await db.select().from(messageThreads).where(eq(messageThreads.id, id));
     return thread;
+  }
+
+  async getMessageThreadWithUser(id: string): Promise<(MessageThread & { user?: User }) | undefined> {
+    const result = await db
+      .select({
+        // Thread fields
+        id: messageThreads.id,
+        userId: messageThreads.userId,
+        deviceId: messageThreads.deviceId,
+        subject: messageThreads.subject,
+        status: messageThreads.status,
+        priority: messageThreads.priority,
+        lastMessageAt: messageThreads.lastMessageAt,
+        unreadByUser: messageThreads.unreadByUser,
+        unreadByAdmin: messageThreads.unreadByAdmin,
+        createdAt: messageThreads.createdAt,
+        updatedAt: messageThreads.updatedAt,
+        // User fields
+        user: {
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          displayName: users.displayName,
+          bio: users.bio,
+          profileImageUrl: users.profileImageUrl,
+          isVerified: users.isVerified,
+          accountStatus: users.accountStatus,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+        }
+      })
+      .from(messageThreads)
+      .leftJoin(users, eq(messageThreads.userId, users.id))
+      .where(eq(messageThreads.id, id))
+      .limit(1);
+
+    if (result.length === 0) {
+      return undefined;
+    }
+
+    const row = result[0];
+    return {
+      id: row.id,
+      userId: row.userId,
+      deviceId: row.deviceId,
+      subject: row.subject,
+      status: row.status,
+      priority: row.priority,
+      lastMessageAt: row.lastMessageAt,
+      unreadByUser: row.unreadByUser,
+      unreadByAdmin: row.unreadByAdmin,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      user: row.user.id ? row.user : undefined,
+    };
   }
 
   async updateMessageThread(id: string, updates: Partial<MessageThread>): Promise<void> {

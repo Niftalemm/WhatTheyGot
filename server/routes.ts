@@ -1287,17 +1287,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get specific thread details (admin only)
+  // Get specific thread details with user info (admin only)
   app.get("/api/admin/threads/:threadId", requireAdmin, async (req: AdminRequest, res: Response) => {
     try {
       const { threadId } = req.params;
 
-      const thread = await storage.getMessageThread(threadId);
-      if (!thread) {
+      const threadWithUser = await storage.getMessageThreadWithUser(threadId);
+      if (!threadWithUser) {
         return res.status(404).json({ error: "Thread not found" });
       }
 
-      res.json(thread);
+      res.json(threadWithUser);
     } catch (error) {
       console.error("Error fetching admin thread:", error);
       res.status(500).json({ error: "Failed to fetch thread" });
