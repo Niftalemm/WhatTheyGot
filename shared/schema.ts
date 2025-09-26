@@ -197,11 +197,55 @@ export const calorieEntries = pgTable("calorie_entries", {
   mealDateIndex: sql`CREATE INDEX IF NOT EXISTS calorie_entries_meal_date_idx ON calorie_entries (meal_date)`,
 }));
 
+// Message threads for two-way communication between users and admins
+export const messageThreads = pgTable("message_threads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
+  deviceId: text("device_id"), // Fallback for non-logged-in users
+  subject: text("subject").notNull(),
+  status: text("status").notNull().default("open"), // open, resolved, blocked
+  priority: text("priority").default("normal"), // low, normal, high, urgent
+  lastMessageAt: timestamp("last_message_at").defaultNow().notNull(),
+  unreadByUser: boolean("unread_by_user").default(false),
+  unreadByAdmin: boolean("unread_by_admin").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  // Ensure accountability: either user_id or device_id must be present
+  identityCheck: sql`CHECK (user_id IS NOT NULL OR device_id IS NOT NULL)`,
+  // Add indexes for performance
+  userIndex: sql`CREATE INDEX IF NOT EXISTS message_threads_user_id_idx ON message_threads (user_id)`,
+  statusIndex: sql`CREATE INDEX IF NOT EXISTS message_threads_status_idx ON message_threads (status)`,
+  lastMessageIndex: sql`CREATE INDEX IF NOT EXISTS message_threads_last_message_at_idx ON message_threads (last_message_at)`,
+}));
+
+// Individual messages within threads
+export const messages = pgTable("messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  threadId: varchar("thread_id").notNull().references(() => messageThreads.id, { onDelete: "cascade" }),
+  isFromAdmin: boolean("is_from_admin").notNull().default(false),
+  senderUserId: varchar("sender_user_id").references(() => users.id, { onDelete: "set null" }),
+  senderDeviceId: text("sender_device_id"), // For non-logged-in users
+  senderName: text("sender_name"), // Display name at time of sending (for admin messages)
+  content: text("content").notNull(),
+  attachmentUrl: text("attachment_url"), // For future file attachments
+  isEdited: boolean("is_edited").default(false),
+  editedAt: timestamp("edited_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  // Add indexes for performance
+  threadIndex: sql`CREATE INDEX IF NOT EXISTS messages_thread_id_idx ON messages (thread_id)`,
+  senderIndex: sql`CREATE INDEX IF NOT EXISTS messages_sender_user_id_idx ON messages (sender_user_id)`,
+  createdAtIndex: sql`CREATE INDEX IF NOT EXISTS messages_created_at_idx ON messages (created_at)`,
+}));
+
 // Define relations
 export const usersRelations = relations(users, ({ many }) => ({
   reviews: many(reviews),
   reviewReports: many(reviewReports),
   calorieEntries: many(calorieEntries),
+  messageThreads: many(messageThreads),
+  sentMessages: many(messages),
 }));
 
 export const menuItemsRelations = relations(menuItems, ({ many }) => ({
@@ -257,6 +301,25 @@ export const pollVotesRelations = relations(pollVotes, ({ one }) => ({
   }),
   user: one(users, {
     fields: [pollVotes.userId],
+    references: [users.id],
+  }),
+}));
+
+export const messageThreadsRelations = relations(messageThreads, ({ one, many }) => ({
+  user: one(users, {
+    fields: [messageThreads.userId],
+    references: [users.id],
+  }),
+  messages: many(messages),
+}));
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  thread: one(messageThreads, {
+    fields: [messages.threadId],
+    references: [messageThreads.id],
+  }),
+  senderUser: one(users, {
+    fields: [messages.senderUserId],
     references: [users.id],
   }),
 }));
@@ -355,6 +418,30 @@ export const insertPollVoteSchema = createInsertSchema(pollVotes).omit({
   selectedOption: z.string().min(1),
 });
 
+export const insertMessageThreadSchema = createInsertSchema(messageThreads).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastMessageAt: true,
+  unreadByUser: true,
+  unreadByAdmin: true,
+}).extend({
+  subject: z.string().min(1).max(200),
+  status: z.enum(["open", "resolved", "blocked"]).default("open"),
+  priority: z.enum(["low", "normal", "high", "urgent"]).default("normal"),
+});
+
+export const insertMessageSchema = createInsertSchema(messages).omit({
+  id: true,
+  createdAt: true,
+  isEdited: true,
+  editedAt: true,
+}).extend({
+  content: z.string().min(1).max(2000),
+  isFromAdmin: z.boolean().default(false),
+  senderName: z.string().max(100).optional(),
+});
+
 // Types (keeping backward compatibility)
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
@@ -390,3 +477,9 @@ export type InsertCalorieEntry = z.infer<typeof insertCalorieEntrySchema>;
 
 export type PollVote = typeof pollVotes.$inferSelect;
 export type InsertPollVote = z.infer<typeof insertPollVoteSchema>;
+
+export type MessageThread = typeof messageThreads.$inferSelect;
+export type InsertMessageThread = z.infer<typeof insertMessageThreadSchema>;
+
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = z.infer<typeof insertMessageSchema>;
