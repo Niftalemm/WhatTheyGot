@@ -58,14 +58,8 @@ export default function AdminThreads() {
   const [sortBy, setSortBy] = useState<string>('newest');
 
   useEffect(() => {
-    const token = localStorage.getItem('adminToken');
-    if (!token) {
-      setLocation('/admin/login');
-      return;
-    }
-    
     fetchThreads();
-  }, [setLocation]);
+  }, []);
 
   const fetchThreads = async () => {
     try {
@@ -77,13 +71,12 @@ export default function AdminThreads() {
       if (response.ok) {
         const data = await response.json();
         setThreads(data);
-      } else if (response.status === 401) {
+      } else {
         toast({
           title: 'Access Denied',
-          description: 'Please log in again.',
+          description: 'You need admin access to view threads.',
           variant: 'destructive',
         });
-        setLocation('/admin/login');
       }
     } catch (error) {
       toast({
@@ -98,13 +91,12 @@ export default function AdminThreads() {
 
   const updateThreadStatus = async (threadId: string, status: string) => {
     try {
-      const token = localStorage.getItem('adminToken');
       const response = await fetch(`/api/admin/threads/${threadId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
         },
+        credentials: 'include',
         body: JSON.stringify({ status }),
       });
 
