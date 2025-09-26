@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { CheckCircle, XCircle, Ban, Eye, AlertTriangle } from "lucide-react";
+import { CheckCircle, XCircle, Ban, Eye, AlertTriangle, ArrowLeft } from "lucide-react";
+import { useLocation } from "wouter";
 import { formatDistanceToNowCDT } from "@/lib/timezone";
 
 interface Review {
@@ -43,6 +44,7 @@ interface BannedDevice {
 
 export default function AdminModeration() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [rejectionReason, setRejectionReason] = useState("");
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const [banDevice, setBanDevice] = useState(false);
@@ -180,11 +182,22 @@ export default function AdminModeration() {
   return (
     <div className="container mx-auto p-6 space-y-6" data-testid="admin-moderation-container">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold" data-testid="page-title">Content Moderation</h1>
-          <p className="text-muted-foreground">
-            Review flagged content and manage user bans
-          </p>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setLocation("/admin/dashboard")}
+            data-testid="button-back"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Dashboard
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold" data-testid="page-title">Content Moderation</h1>
+            <p className="text-muted-foreground">
+              Review flagged content and manage user bans
+            </p>
+          </div>
         </div>
         <Badge variant="outline" data-testid="pending-count">
           {(pendingReviews as Review[]).length} pending reviews
