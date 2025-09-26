@@ -18,6 +18,8 @@ import AdminMenu from "@/pages/AdminMenu";
 import AdminMessages from "@/pages/AdminMessages";
 import AdminReviews from "@/pages/AdminReviews";
 import AdminModeration from "@/pages/AdminModeration";
+import NewMessagePage from "@/pages/NewMessagePage";
+import ThreadDetailPage from "@/pages/ThreadDetailPage";
 import NotFound from "@/pages/not-found";
 import { useState } from "react";
 import { useLocation } from "wouter";
@@ -87,6 +89,12 @@ function Router() {
       {/* Individual menu item pages without bottom navigation */}
       <Route path="/menu-item/:itemId">
         {({ itemId }) => <MenuItemPage itemId={itemId} />}
+      </Route>
+      
+      {/* Messaging pages without bottom navigation */}
+      <Route path="/messages/new" component={NewMessagePage} />
+      <Route path="/messages/:threadId">
+        {({ threadId }) => <ThreadDetailPage threadId={threadId} />}
       </Route>
       
       {/* Protected routes for authenticated users */}

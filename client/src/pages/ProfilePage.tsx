@@ -25,13 +25,13 @@ import { Link } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertTriangle } from "lucide-react";
 import CalorieTracker from "@/components/CalorieTracker";
+import MessageThreadsList from "@/components/MessageThreadsList";
 
 export default function ProfilePage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isEditingName, setIsEditingName] = useState(false);
   const [username, setUsername] = useState(user?.displayName || "");
-  const [feedback, setFeedback] = useState("");
   const [isImageUploadOpen, setIsImageUploadOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [profileImage, setProfileImage] = useState<string | null>(
@@ -109,43 +109,6 @@ export default function ProfilePage() {
     }
   };
 
-  const handleSubmitFeedback = async () => {
-    if (!feedback.trim()) return;
-
-    try {
-      const response = await fetch('/api/feedback', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          message: feedback.trim()
-        }),
-      });
-
-      if (response.ok) {
-        toast({
-          title: "Feedback sent",
-          description: "Thank you for your feedback! We'll review it shortly.",
-        });
-        setFeedback("");
-      } else {
-        const error = await response.json();
-        toast({
-          title: "Submission failed",
-          description: error.error || "Failed to submit feedback",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Network error",
-        description: "Please check your connection and try again",
-        variant: "destructive",
-      });
-    }
-  };
 
   // Handle file selection
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -323,30 +286,26 @@ export default function ProfilePage() {
         {/* Today's Calorie Tracker */}
         <CalorieTracker />
 
-        {/* Feedback Section */}
+        {/* Messages Section */}
         <Card>
           <CardContent className="pt-6">
             <div className="space-y-4">
-              <Label htmlFor="feedback" className="font-medium">Send Feedback</Label>
-              <Textarea
-                id="feedback"
-                placeholder="Share your thoughts, suggestions, or report issues..."
-                value={feedback}
-                onChange={(e) => setFeedback(e.target.value)}
-                className="resize-none"
-                rows={3}
-                data-testid="textarea-feedback"
-              />
-              <Button 
-                onClick={handleSubmitFeedback}
-                disabled={!feedback.trim()}
-                className="w-full"
-                data-testid="button-submit-feedback"
-              >
-                Send Feedback
-              </Button>
+              <div className="flex items-center justify-between">
+                <Label className="font-medium">Messages</Label>
+                <Link to="/messages/new">
+                  <Button size="sm" data-testid="button-new-message">
+                    <MessageSquare className="w-4 h-4 mr-2" />
+                    New Message
+                  </Button>
+                </Link>
+              </div>
+              
+              <div className="space-y-3">
+                <MessageThreadsList />
+              </div>
+              
               <p className="text-xs text-muted-foreground text-center">
-                Your feedback helps improve the dining experience for everyone
+                Contact support for help, feedback, or account issues
               </p>
             </div>
           </CardContent>
