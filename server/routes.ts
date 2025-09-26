@@ -1,4 +1,5 @@
 import type { Express, Request, Response } from "express";
+import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertReviewSchema, insertReportSchema, insertAdminMessageSchema, insertMenuItemSchema, insertUserSchema, insertReviewReportSchema, insertCalorieEntrySchema, reviews, bannedDevices, users, User } from "@shared/schema";
@@ -8,6 +9,9 @@ import jwt from "jsonwebtoken";
 import { moderationProvider, createDeviceHash } from "./moderation";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
+import multer from "multer";
+import path from "path";
+import fs from "fs/promises";
 
 // Helper function to compute displayName from firstName and lastName
 function computeDisplayName(firstName: string | null, lastName: string | null): string {
@@ -73,6 +77,44 @@ if (!JWT_SECRET && !isDev) {
   console.error("CRITICAL: JWT_SECRET required in production for admin authentication");
   process.exit(1);
 }
+
+// Configure multer for file uploads
+const uploadsDir = path.join(process.cwd(), 'uploads', 'menu-items');
+
+// Create uploads directory if it doesn't exist
+(async () => {
+  try {
+    await fs.access(uploadsDir);
+  } catch {
+    await fs.mkdir(uploadsDir, { recursive: true });
+  }
+})();
+
+const storage_multer = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uuid = randomUUID();
+    const ext = path.extname(file.originalname);
+    cb(null, `${uuid}${ext}`);
+  }
+});
+
+const upload = multer({
+  storage: storage_multer,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only JPG, PNG, and WebP images are allowed'));
+    }
+  }
+});
 
 // Use dev secret only in development
 const jwtSecret = JWT_SECRET || 'dev-jwt-secret-key';
@@ -150,6 +192,10 @@ function requireAdmin(req: AdminRequest, res: any, next: any) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Serve static files for uploaded menu item photos
+  const uploadsStaticPath = path.join(process.cwd(), 'uploads');
+  app.use('/uploads', express.static(uploadsStaticPath));
+
   // Set up Replit authentication with OAuth providers
   const { setupAuth, isAuthenticated } = await import('./replitAuth');
   await setupAuth(app);
@@ -1117,6 +1163,136 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error bulk creating menu items:", error);
       res.status(500).json({ error: "Failed to create menu items" });
+    }
+  });
+
+  // Delete menu item
+  app.delete("/api/admin/menu-items/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Check if menu item exists
+      const menuItem = await storage.getMenuItemById(id);
+      if (!menuItem) {
+        return res.status(404).json({ error: "Menu item not found" });
+      }
+
+      // Delete the menu item (this will cascade delete reviews)
+      await storage.deleteMenuItem(id);
+      
+      // If there was a photo, try to delete it from disk
+      if (menuItem.imageUrl) {
+        try {
+          const filename = path.basename(menuItem.imageUrl);
+          const filepath = path.join(uploadsDir, filename);
+          await fs.unlink(filepath);
+        } catch (error) {
+          console.warn("Warning: Could not delete photo file:", error);
+        }
+      }
+
+      res.json({ 
+        success: true, 
+        message: "Menu item deleted successfully" 
+      });
+    } catch (error) {
+      console.error("Error deleting menu item:", error);
+      res.status(500).json({ error: "Failed to delete menu item" });
+    }
+  });
+
+  // Upload/replace menu item photo
+  app.post("/api/admin/menu-items/:id/photo", requireAdmin, upload.single('photo'), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { altText } = req.body;
+      
+      if (!req.file) {
+        return res.status(400).json({ error: "No photo file provided" });
+      }
+
+      // Check if menu item exists
+      const menuItem = await storage.getMenuItemById(id);
+      if (!menuItem) {
+        // Clean up uploaded file
+        try {
+          await fs.unlink(req.file.path);
+        } catch (error) {
+          console.warn("Warning: Could not delete uploaded file:", error);
+        }
+        return res.status(404).json({ error: "Menu item not found" });
+      }
+
+      // Delete old photo if exists
+      if (menuItem.imageUrl) {
+        try {
+          const oldFilename = path.basename(menuItem.imageUrl);
+          const oldFilepath = path.join(uploadsDir, oldFilename);
+          await fs.unlink(oldFilepath);
+        } catch (error) {
+          console.warn("Warning: Could not delete old photo file:", error);
+        }
+      }
+
+      // Save new photo URL to database
+      const imageUrl = `/uploads/menu-items/${req.file.filename}`;
+      await storage.updateMenuItemPhoto(id, imageUrl);
+
+      res.json({ 
+        success: true, 
+        message: "Photo saved.",
+        imageUrl 
+      });
+    } catch (error) {
+      console.error("Error uploading menu item photo:", error);
+      
+      // Clean up uploaded file on error
+      if (req.file) {
+        try {
+          await fs.unlink(req.file.path);
+        } catch (cleanupError) {
+          console.warn("Warning: Could not delete uploaded file on error:", cleanupError);
+        }
+      }
+      
+      res.status(500).json({ error: "Failed to upload photo" });
+    }
+  });
+
+  // Delete menu item photo
+  app.delete("/api/admin/menu-items/:id/photo", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Check if menu item exists
+      const menuItem = await storage.getMenuItemById(id);
+      if (!menuItem) {
+        return res.status(404).json({ error: "Menu item not found" });
+      }
+
+      if (!menuItem.imageUrl) {
+        return res.status(400).json({ error: "No photo to delete" });
+      }
+
+      // Delete photo file from disk
+      try {
+        const filename = path.basename(menuItem.imageUrl);
+        const filepath = path.join(uploadsDir, filename);
+        await fs.unlink(filepath);
+      } catch (error) {
+        console.warn("Warning: Could not delete photo file:", error);
+      }
+
+      // Remove photo URL from database
+      await storage.updateMenuItemPhoto(id, null);
+
+      res.json({ 
+        success: true, 
+        message: "Photo removed successfully" 
+      });
+    } catch (error) {
+      console.error("Error deleting menu item photo:", error);
+      res.status(500).json({ error: "Failed to delete photo" });
     }
   });
 

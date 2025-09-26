@@ -68,6 +68,8 @@ export interface IStorage {
   createMenuItem(item: InsertMenuItem): Promise<MenuItem>;
   bulkCreateMenuItems(items: InsertMenuItem[]): Promise<MenuItem[]>;
   deleteExpiredMenuItems(date: string, expiredPeriods: string[]): Promise<number>;
+  deleteMenuItem(id: string): Promise<void>;
+  updateMenuItemPhoto(id: string, imageUrl: string | null): Promise<void>;
   
   // Reviews  
   getReviewsForMenuItem(menuItemId: string): Promise<Review[]>;
@@ -347,6 +349,14 @@ export class DatabaseStorage implements IStorage {
     console.log(`Deleted ${deletedCount} expired menu items and their reviews`);
     
     return deletedCount;
+  }
+
+  async deleteMenuItem(id: string): Promise<void> {
+    await db.delete(menuItems).where(eq(menuItems.id, id));
+  }
+
+  async updateMenuItemPhoto(id: string, imageUrl: string | null): Promise<void> {
+    await db.update(menuItems).set({ imageUrl }).where(eq(menuItems.id, id));
   }
 
   isMealPeriodOpen(mealPeriod: string): { isOpen: boolean; reason?: string; nextOpening?: string } {
