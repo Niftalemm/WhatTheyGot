@@ -22,6 +22,7 @@ interface AdminMessage {
   showOn: string[];
   pollQuestion?: string;
   pollOptions?: string[];
+  resultsRevealed?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -297,6 +298,8 @@ export default function AdminMessages() {
         refetchResults();
         queryClient.invalidateQueries({ queryKey: ['poll-results', message.id] });
         queryClient.invalidateQueries({ queryKey: ['/api/messages'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/messages'] });
+        queryClient.invalidateQueries({ queryKey: ['home-messages'] });
         toast({
           title: 'Results Revealed!',
           description: 'Poll results are now visible to all users.',

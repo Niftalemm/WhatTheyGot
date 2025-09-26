@@ -18,6 +18,7 @@ interface Message {
   showOn: string[];
   pollQuestion?: string;
   pollOptions?: string[];
+  resultsRevealed?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -125,7 +126,35 @@ export default function Home() {
             {message.pollQuestion}
           </h4>
           
-          {!hasVoted ? (
+          {message.resultsRevealed ? (
+            <div className="space-y-2">
+              <p className="text-sm text-green-600 dark:text-green-400 mb-3">
+                Poll Results ({totalVotes} votes)
+              </p>
+              {pollResults?.results?.map((result: any) => {
+                const percentage = totalVotes > 0 ? Math.round((result.voteCount / totalVotes) * 100) : 0;
+                return (
+                  <div key={result.optionId} className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span>{result.optionText}</span>
+                      <span className="text-green-600 dark:text-green-400">{percentage}% ({result.voteCount})</span>
+                    </div>
+                    <div className="h-2 bg-green-100 dark:bg-green-900 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-green-500 transition-all duration-500"
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : hasVoted ? (
+            <div className="text-center py-4">
+              <p className="text-sm text-green-600 dark:text-green-400 mb-2">✓ Your vote has been recorded!</p>
+              <p className="text-xs text-muted-foreground">Waiting for results to be revealed...</p>
+            </div>
+          ) : (
             <div className="space-y-2">
               {pollResults?.options?.map((option: any) => (
                 <label key={option.id} className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-green-100 dark:hover:bg-green-900">
@@ -150,38 +179,6 @@ export default function Home() {
               >
                 {voteMutation.isPending ? 'Voting...' : 'Vote'}
               </Button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {message.resultsRevealed ? (
-                <>
-                  <p className="text-sm text-green-600 dark:text-green-400 mb-3">
-                    Poll Results ({totalVotes} votes)
-                  </p>
-                  {pollResults?.results?.map((result: any) => {
-                    const percentage = totalVotes > 0 ? Math.round((result.voteCount / totalVotes) * 100) : 0;
-                    return (
-                      <div key={result.optionId} className="space-y-1">
-                        <div className="flex justify-between text-sm">
-                          <span>{result.optionText}</span>
-                          <span className="text-green-600 dark:text-green-400">{percentage}% ({result.voteCount})</span>
-                        </div>
-                        <div className="h-2 bg-green-100 dark:bg-green-900 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-green-500 transition-all duration-500"
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </>
-              ) : (
-                <div className="text-center py-4">
-                  <p className="text-sm text-green-600 dark:text-green-400 mb-2">✓ Your vote has been recorded!</p>
-                  <p className="text-xs text-muted-foreground">Waiting for results to be revealed...</p>
-                </div>
-              )}
             </div>
           )}
         </div>
