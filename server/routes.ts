@@ -1458,6 +1458,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/polls/:pollId/reveal", requireAdmin, async (req, res) => {
+    try {
+      const { pollId } = req.params;
+      
+      // Update the poll message to reveal results
+      await storage.updateAdminMessage(pollId, { resultsRevealed: true });
+      
+      // Get the updated poll results
+      const results = await storage.getPollResults(pollId);
+      const message = await storage.getAdminMessage(pollId);
+      
+      // Create options array with IDs for frontend compatibility
+      const options = message?.pollOptions?.map((optionText, index) => ({
+        id: `${pollId}-option-${index}`,
+        optionText,
+      })) || [];
+
+      res.json({ success: true, results, options, message });
+    } catch (error) {
+      console.error("Error revealing poll results:", error);
+      res.status(500).json({ error: "Failed to reveal poll results" });
+    }
+  });
+
   // User-facing messages (active only)
   app.get("/api/messages/active", async (req, res) => {
     try {

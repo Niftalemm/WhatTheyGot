@@ -259,10 +259,7 @@ export default function AdminMessages() {
     // Voting mutation
     const voteMutation = useMutation({
       mutationFn: async (optionId: string) => {
-        return apiRequest(`/api/polls/${message.id}/vote`, {
-          method: 'POST',
-          body: { optionId }
-        });
+        return apiRequest('POST', `/api/polls/${message.id}/vote`, { optionId });
       },
       onSuccess: () => {
         setHasVoted(true);
@@ -281,9 +278,48 @@ export default function AdminMessages() {
       }
     });
 
+    // Reveal results mutation
+    const revealMutation = useMutation({
+      mutationFn: async () => {
+        const token = localStorage.getItem('adminToken');
+        const response = await fetch(`/api/polls/${message.id}/reveal`, {
+          method: 'POST',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        });
+        if (!response.ok) throw new Error('Failed to reveal results');
+        return response.json();
+      },
+      onSuccess: () => {
+        refetchResults();
+        queryClient.invalidateQueries({ queryKey: ['poll-results', message.id] });
+        queryClient.invalidateQueries({ queryKey: ['/api/messages'] });
+        toast({
+          title: 'Results Revealed!',
+          description: 'Poll results are now visible to all users.',
+        });
+      },
+      onError: () => {
+        toast({
+          title: 'Error',
+          description: 'Failed to reveal poll results. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    });
+
     const handleVote = () => {
       if (selectedOption && !hasVoted) {
         voteMutation.mutate(selectedOption);
+      }
+    };
+
+    const handleReveal = () => {
+      if (confirm('Are you sure you want to reveal the poll results to all users? This action cannot be undone.')) {
+        revealMutation.mutate();
       }
     };
 
@@ -345,6 +381,28 @@ export default function AdminMessages() {
                   </div>
                 );
               })}
+              
+              {/* Admin reveal button */}
+              <div className="mt-4 pt-3 border-t border-muted">
+                <div className="flex justify-between items-center">
+                  <p className="text-xs text-muted-foreground">
+                    Admin Controls
+                  </p>
+                  {!message.resultsRevealed ? (
+                    <Button 
+                      onClick={handleReveal}
+                      disabled={revealMutation.isPending}
+                      size="sm"
+                      variant="outline"
+                      data-testid="button-reveal-results"
+                    >
+                      {revealMutation.isPending ? 'Revealing...' : 'Reveal Results'}
+                    </Button>
+                  ) : (
+                    <Badge variant="secondary">Results Revealed</Badge>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>

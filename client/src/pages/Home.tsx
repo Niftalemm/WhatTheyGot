@@ -90,10 +90,7 @@ export default function Home() {
     // Voting mutation
     const voteMutation = useMutation({
       mutationFn: async (optionId: string) => {
-        return apiRequest(`/api/polls/${message.id}/vote`, {
-          method: 'POST',
-          body: { optionId }
-        });
+        return apiRequest('POST', `/api/polls/${message.id}/vote`, { optionId });
       },
       onSuccess: () => {
         setHasVoted(true);
@@ -156,26 +153,35 @@ export default function Home() {
             </div>
           ) : (
             <div className="space-y-2">
-              <p className="text-sm text-green-600 dark:text-green-400 mb-3">
-                Poll Results ({totalVotes} votes)
-              </p>
-              {pollResults?.results?.map((result: any) => {
-                const percentage = totalVotes > 0 ? Math.round((result.voteCount / totalVotes) * 100) : 0;
-                return (
-                  <div key={result.optionId} className="space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span>{result.optionText}</span>
-                      <span className="text-green-600 dark:text-green-400">{percentage}% ({result.voteCount})</span>
-                    </div>
-                    <div className="h-2 bg-green-100 dark:bg-green-900 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-green-500 transition-all duration-500"
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
+              {message.resultsRevealed ? (
+                <>
+                  <p className="text-sm text-green-600 dark:text-green-400 mb-3">
+                    Poll Results ({totalVotes} votes)
+                  </p>
+                  {pollResults?.results?.map((result: any) => {
+                    const percentage = totalVotes > 0 ? Math.round((result.voteCount / totalVotes) * 100) : 0;
+                    return (
+                      <div key={result.optionId} className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span>{result.optionText}</span>
+                          <span className="text-green-600 dark:text-green-400">{percentage}% ({result.voteCount})</span>
+                        </div>
+                        <div className="h-2 bg-green-100 dark:bg-green-900 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-green-500 transition-all duration-500"
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-sm text-green-600 dark:text-green-400 mb-2">✓ Your vote has been recorded!</p>
+                  <p className="text-xs text-muted-foreground">Waiting for results to be revealed...</p>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -133,6 +133,7 @@ export const adminMessages = pgTable("admin_messages", {
   // Poll-specific fields
   pollQuestion: text("poll_question"), // Only for poll type messages
   pollOptions: json("poll_options").$type<string[]>().default([]), // Array of poll option strings
+  resultsRevealed: boolean("results_revealed").default(false), // Whether poll results are visible to users
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
