@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertReviewSchema, insertReportSchema, insertAdminMessageSchema, insertMenuItemSchema, insertUserSchema, insertReviewReportSchema, insertCalorieEntrySchema, insertPollVoteSchema, reviews, bannedDevices, users, User } from "@shared/schema";
+import { insertReviewSchema, insertReportSchema, insertAdminMessageSchema, insertMenuItemSchema, insertUserSchema, insertReviewReportSchema, insertCalorieEntrySchema, insertPollVoteSchema, insertMessageThreadSchema, insertMessageSchema, reviews, bannedDevices, users, User } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { menuScraper } from "./scraper";
 import jwt from "jsonwebtoken";
@@ -981,34 +981,287 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // User feedback submission endpoint  
-  app.post("/api/feedback", isAuthenticated, async (req: any, res: Response) => {
+  // Message Threads API
+
+  // Get user's message threads
+  app.get("/api/threads", isAuthenticated, async (req: any, res: Response) => {
     try {
-      const { message } = req.body;
-      
-      if (!message || message.trim().length === 0) {
-        return res.status(400).json({ error: "Feedback message is required" });
-      }
-      
-      if (message.trim().length > 1000) {
-        return res.status(400).json({ error: "Feedback message is too long (max 1000 characters)" });
-      }
-      
-      // Get user info from Replit Auth
-      const userEmail = req.user.claims.email || 'unknown';
-      const userDisplayName = req.user.claims.name || 'Anonymous User';
-      
-      // TODO: Store feedback in database table for admin dashboard
-      // For now, just log it
-      console.log(`User Feedback from ${userEmail} (${userDisplayName}): ${message.trim()}`);
-      
-      res.json({
-        message: "Thank you for your feedback! We'll review it shortly.",
-        submittedAt: new Date().toISOString()
-      });
+      const userId = req.user.claims.sub;
+      const threads = await storage.getUserMessageThreads(userId);
+      res.json(threads);
     } catch (error) {
-      console.error("Error submitting feedback:", error);
-      res.status(500).json({ error: "Failed to submit feedback" });
+      console.error("Error fetching user threads:", error);
+      res.status(500).json({ error: "Failed to fetch threads" });
+    }
+  });
+
+  // Create new message thread
+  app.post("/api/threads", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const { subject, content } = req.body;
+      const userId = req.user.claims.sub;
+      const userEmail = req.user.claims.email;
+      const userDisplayName = req.user.claims.name || 'Anonymous User';
+
+      if (!subject || !content) {
+        return res.status(400).json({ error: "Subject and content are required" });
+      }
+
+      if (subject.trim().length === 0 || content.trim().length === 0) {
+        return res.status(400).json({ error: "Subject and content cannot be empty" });
+      }
+
+      if (subject.length > 200) {
+        return res.status(400).json({ error: "Subject is too long (max 200 characters)" });
+      }
+
+      if (content.length > 2000) {
+        return res.status(400).json({ error: "Message is too long (max 2000 characters)" });
+      }
+
+      // Create thread
+      const threadData = {
+        userId,
+        subject: subject.trim(),
+        status: "open" as const,
+        unreadByUser: false,
+        unreadByAdmin: true,
+      };
+
+      const thread = await storage.createMessageThread(threadData);
+
+      // Create initial message
+      const messageData = {
+        threadId: thread.id,
+        content: content.trim(),
+        senderUserId: userId,
+        isFromAdmin: false,
+      };
+
+      const message = await storage.createMessage(messageData);
+
+      res.status(201).json({ 
+        thread, 
+        message,
+        success: "Your message has been sent. We'll respond as soon as possible." 
+      });
+    } catch (error: any) {
+      console.error("Error creating thread:", error);
+      if (error.name === "ZodError") {
+        return res.status(400).json({ 
+          error: "Invalid thread data", 
+          details: error.errors 
+        });
+      }
+      res.status(500).json({ error: "Failed to create thread" });
+    }
+  });
+
+  // Get specific thread details
+  app.get("/api/threads/:threadId", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const { threadId } = req.params;
+      const userId = req.user.claims.sub;
+
+      const thread = await storage.getMessageThread(threadId);
+      if (!thread) {
+        return res.status(404).json({ error: "Thread not found" });
+      }
+
+      // Verify user owns this thread
+      if (thread.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      res.json(thread);
+    } catch (error) {
+      console.error("Error fetching thread:", error);
+      res.status(500).json({ error: "Failed to fetch thread" });
+    }
+  });
+
+  // Get messages for a thread
+  app.get("/api/threads/:threadId/messages", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const { threadId } = req.params;
+      const userId = req.user.claims.sub;
+
+      // Verify user owns this thread
+      const thread = await storage.getMessageThread(threadId);
+      if (!thread) {
+        return res.status(404).json({ error: "Thread not found" });
+      }
+
+      if (thread.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const messages = await storage.getThreadMessages(threadId);
+      
+      // Mark thread as read by user
+      await storage.markThreadReadByUser(threadId);
+
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching thread messages:", error);
+      res.status(500).json({ error: "Failed to fetch messages" });
+    }
+  });
+
+  // Add message to thread (user reply)
+  app.post("/api/threads/:threadId/messages", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const { threadId } = req.params;
+      const { content } = req.body;
+      const userId = req.user.claims.sub;
+
+      if (!content || content.trim().length === 0) {
+        return res.status(400).json({ error: "Message content is required" });
+      }
+
+      if (content.length > 2000) {
+        return res.status(400).json({ error: "Message is too long (max 2000 characters)" });
+      }
+
+      // Verify user owns this thread
+      const thread = await storage.getMessageThread(threadId);
+      if (!thread) {
+        return res.status(404).json({ error: "Thread not found" });
+      }
+
+      if (thread.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Check if user is blocked from replying
+      if (thread.status === "blocked") {
+        return res.status(403).json({ error: "You are not allowed to reply to this thread" });
+      }
+
+      // Create message
+      const messageData = {
+        threadId,
+        content: content.trim(),
+        senderUserId: userId,
+        isFromAdmin: false,
+      };
+
+      const message = await storage.createMessage(messageData);
+
+      // Update thread status to open if it was resolved
+      if (thread.status === "resolved") {
+        await storage.updateMessageThread(threadId, { status: "open" });
+      }
+
+      res.status(201).json({ 
+        message,
+        success: "Your reply has been sent." 
+      });
+    } catch (error: any) {
+      console.error("Error creating message:", error);
+      if (error.name === "ZodError") {
+        return res.status(400).json({ 
+          error: "Invalid message data", 
+          details: error.errors 
+        });
+      }
+      res.status(500).json({ error: "Failed to send message" });
+    }
+  });
+
+  // Get user's unread message count
+  app.get("/api/threads/unread/count", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.user.claims.sub;
+      const count = await storage.getUserUnreadCount(userId);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error fetching unread count:", error);
+      res.status(500).json({ error: "Failed to fetch unread count" });
+    }
+  });
+
+  // Admin endpoints for messaging
+
+  // Get all threads (admin only)
+  app.get("/api/admin/threads", requireAdmin, async (req: AdminRequest, res: Response) => {
+    try {
+      const threads = await storage.getUserMessageThreads(); // No filters = get all threads
+      res.json(threads);
+    } catch (error) {
+      console.error("Error fetching all threads:", error);
+      res.status(500).json({ error: "Failed to fetch threads" });
+    }
+  });
+
+  // Admin reply to thread
+  app.post("/api/admin/threads/:threadId/messages", requireAdmin, async (req: AdminRequest, res: Response) => {
+    try {
+      const { threadId } = req.params;
+      const { content } = req.body;
+
+      if (!content || content.trim().length === 0) {
+        return res.status(400).json({ error: "Message content is required" });
+      }
+
+      if (content.length > 2000) {
+        return res.status(400).json({ error: "Message is too long (max 2000 characters)" });
+      }
+
+      const thread = await storage.getMessageThread(threadId);
+      if (!thread) {
+        return res.status(404).json({ error: "Thread not found" });
+      }
+
+      // Create admin message
+      const messageData = {
+        threadId,
+        content: content.trim(),
+        isFromAdmin: true,
+      };
+
+      const message = await storage.createMessage(messageData);
+
+      res.status(201).json({ 
+        message,
+        success: "Reply sent to user." 
+      });
+    } catch (error: any) {
+      console.error("Error creating admin message:", error);
+      if (error.name === "ZodError") {
+        return res.status(400).json({ 
+          error: "Invalid message data", 
+          details: error.errors 
+        });
+      }
+      res.status(500).json({ error: "Failed to send message" });
+    }
+  });
+
+  // Admin update thread status
+  app.patch("/api/admin/threads/:threadId", requireAdmin, async (req: AdminRequest, res: Response) => {
+    try {
+      const { threadId } = req.params;
+      const { status } = req.body;
+
+      if (!status || !["open", "resolved", "blocked"].includes(status)) {
+        return res.status(400).json({ error: "Valid status is required (open, resolved, blocked)" });
+      }
+
+      const thread = await storage.getMessageThread(threadId);
+      if (!thread) {
+        return res.status(404).json({ error: "Thread not found" });
+      }
+
+      await storage.updateMessageThread(threadId, { status });
+      
+      // Mark as read by admin
+      await storage.markThreadReadByAdmin(threadId);
+
+      res.json({ success: `Thread status updated to ${status}` });
+    } catch (error) {
+      console.error("Error updating thread status:", error);
+      res.status(500).json({ error: "Failed to update thread status" });
     }
   });
 
