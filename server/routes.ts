@@ -160,19 +160,33 @@ function requireUser(req: UserRequest, res: Response, next: any) {
   }
 }
 
-// Simple admin check using existing Replit authentication
-function requireAdmin(req: any, res: any, next: any) {
-  // Use existing Replit auth and check for admin role
-  if (!req.user || !req.user.claims) {
-    return res.status(401).json({ error: "Authentication required" });
+// Admin authentication middleware - supports both JWT tokens and Replit auth with admin role
+function requireAdmin(req: AdminRequest, res: any, next: any) {
+  const authHeader = req.headers.authorization;
+  
+  // Check for JWT token first (admin login system)
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    
+    try {
+      const decoded = jwt.verify(token, verifiedJwtSecret) as any;
+      
+      // Verify this is an admin token
+      if (decoded.type === 'admin') {
+        req.admin = decoded;
+        return next();
+      }
+    } catch (error) {
+      // JWT failed, fall through to check Replit auth
+    }
   }
   
-  // Check if user has admin role
-  if (req.user.claims.role !== 'admin') {
-    return res.status(403).json({ error: "Admin access required" });
+  // Fallback: Check Replit authentication with admin role
+  if (req.user && req.user.claims && req.user.claims.role === 'admin') {
+    return next();
   }
   
-  next();
+  return res.status(401).json({ error: "Admin authentication required" });
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -1263,7 +1277,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin endpoints for messaging
 
   // Get all threads (admin only)
-  app.get("/api/admin/threads", isAuthenticated, requireAdmin, async (req: any, res: Response) => {
+  app.get("/api/admin/threads", requireAdmin, async (req: AdminRequest, res: Response) => {
     try {
       const threads = await storage.getUserMessageThreads(); // No filters = get all threads
       res.json(threads);
@@ -1274,7 +1288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get specific thread details (admin only)
-  app.get("/api/admin/threads/:threadId", isAuthenticated, requireAdmin, async (req: any, res: Response) => {
+  app.get("/api/admin/threads/:threadId", requireAdmin, async (req: AdminRequest, res: Response) => {
     try {
       const { threadId } = req.params;
 
@@ -1291,7 +1305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get messages for a thread (admin only)
-  app.get("/api/admin/threads/:threadId/messages", isAuthenticated, requireAdmin, async (req: any, res: Response) => {
+  app.get("/api/admin/threads/:threadId/messages", requireAdmin, async (req: AdminRequest, res: Response) => {
     try {
       const { threadId } = req.params;
 
@@ -1313,7 +1327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin reply to thread
-  app.post("/api/admin/threads/:threadId/messages", isAuthenticated, requireAdmin, async (req: any, res: Response) => {
+  app.post("/api/admin/threads/:threadId/messages", requireAdmin, async (req: AdminRequest, res: Response) => {
     try {
       const { threadId } = req.params;
       const { content } = req.body;
@@ -1357,7 +1371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin update thread status
-  app.patch("/api/admin/threads/:threadId", isAuthenticated, requireAdmin, async (req: any, res: Response) => {
+  app.patch("/api/admin/threads/:threadId", requireAdmin, async (req: AdminRequest, res: Response) => {
     try {
       const { threadId } = req.params;
       const { status } = req.body;

@@ -79,9 +79,11 @@ export default function AdminThreadDetailPage({ threadId }: AdminThreadDetailPag
   
   const [replyContent, setReplyContent] = useState("");
 
-  // Use regular authentication with credentials
+  // Admin token for API calls
   const getAuthHeaders = () => {
+    const token = localStorage.getItem('adminToken');
     return { 
+      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     };
   };
@@ -92,9 +94,11 @@ export default function AdminThreadDetailPage({ threadId }: AdminThreadDetailPag
     queryFn: async () => {
       const response = await fetch(`/api/admin/threads/${threadId}`, {
         headers: getAuthHeaders(),
-        credentials: 'include',
       });
       if (!response.ok) {
+        if (response.status === 401) {
+          setLocation('/admin/login');
+        }
         throw new Error('Failed to fetch thread');
       }
       return response.json();
@@ -108,7 +112,6 @@ export default function AdminThreadDetailPage({ threadId }: AdminThreadDetailPag
     queryFn: async () => {
       const response = await fetch(`/api/admin/threads/${threadId}/messages`, {
         headers: getAuthHeaders(),
-        credentials: 'include',
       });
       if (!response.ok) {
         throw new Error('Failed to fetch messages');
@@ -124,7 +127,6 @@ export default function AdminThreadDetailPage({ threadId }: AdminThreadDetailPag
       const response = await fetch(`/api/admin/threads/${threadId}/messages`, {
         method: "POST",
         headers: getAuthHeaders(),
-        credentials: 'include',
         body: JSON.stringify({ content }),
       });
       if (!response.ok) {
@@ -160,7 +162,6 @@ export default function AdminThreadDetailPage({ threadId }: AdminThreadDetailPag
       const response = await fetch(`/api/admin/threads/${threadId}`, {
         method: "PATCH",
         headers: getAuthHeaders(),
-        credentials: 'include',
         body: JSON.stringify({ status }),
       });
       if (!response.ok) {
