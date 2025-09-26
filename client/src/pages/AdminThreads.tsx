@@ -203,9 +203,9 @@ export default function AdminThreads() {
         {/* Filters and Stats */}
         <div className="mb-6 space-y-4">
           <div className="flex flex-col sm:flex-row gap-4 justify-between">
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-40" data-testid="select-filter-status">
+                <SelectTrigger className="w-full sm:w-40" data-testid="select-filter-status">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -217,7 +217,7 @@ export default function AdminThreads() {
               </Select>
 
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-40" data-testid="select-sort-by">
+                <SelectTrigger className="w-full sm:w-40" data-testid="select-sort-by">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
@@ -228,7 +228,7 @@ export default function AdminThreads() {
               </Select>
             </div>
 
-            <div className="flex gap-4 text-sm text-muted-foreground">
+            <div className="flex gap-4 text-sm text-muted-foreground justify-center sm:justify-end">
               <span data-testid="text-total-threads">Total: {threads.length}</span>
               <span data-testid="text-unread-threads">Unread: {threads.filter(t => t.unreadByAdmin).length}</span>
             </div>
@@ -244,10 +244,10 @@ export default function AdminThreads() {
               
               return (
                 <Card key={thread.id} className="hover-elevate transition-all duration-200">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between gap-4">
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
                           <h3 
                             className="font-semibold text-lg truncate"
                             data-testid={`thread-subject-${thread.id}`}
@@ -255,21 +255,23 @@ export default function AdminThreads() {
                             {thread.subject}
                           </h3>
                           
-                          {thread.unreadByAdmin && (
-                            <Badge 
-                              variant="destructive" 
-                              className="h-5 px-2 text-xs"
-                              data-testid={`badge-unread-admin-${thread.id}`}
-                            >
-                              Unread
-                            </Badge>
-                          )}
-                          
-                          <div className={`flex items-center gap-1 ${statusInfo.textColor}`}>
-                            <StatusIcon className="w-4 h-4" />
-                            <span className="text-xs font-medium">
-                              {statusInfo.label}
-                            </span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {thread.unreadByAdmin && (
+                              <Badge 
+                                variant="destructive" 
+                                className="h-5 px-2 text-xs"
+                                data-testid={`badge-unread-admin-${thread.id}`}
+                              >
+                                Unread
+                              </Badge>
+                            )}
+                            
+                            <div className={`flex items-center gap-1 ${statusInfo.textColor}`}>
+                              <StatusIcon className="w-4 h-4" />
+                              <span className="text-xs font-medium">
+                                {statusInfo.label}
+                              </span>
+                            </div>
                           </div>
                         </div>
                         
@@ -305,14 +307,16 @@ export default function AdminThreads() {
                         </div>
                       </div>
                       
-                      <div className="flex flex-col gap-2">
+                      <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                         <Button
                           size="sm"
+                          className="flex-1 sm:flex-initial"
                           onClick={() => setLocation(`/admin/threads/${thread.id}`)}
                           data-testid={`button-view-thread-${thread.id}`}
                         >
                           <MessageSquare className="w-4 h-4 mr-2" />
-                          View & Reply
+                          <span className="hidden sm:inline">View & Reply</span>
+                          <span className="sm:hidden">View</span>
                         </Button>
                         
                         <Select 
@@ -320,7 +324,7 @@ export default function AdminThreads() {
                           onValueChange={(value) => updateThreadStatus(thread.id, value)}
                         >
                           <SelectTrigger 
-                            className="w-32 h-8 text-xs"
+                            className="w-full sm:w-32 h-9 sm:h-8 text-sm sm:text-xs"
                             data-testid={`select-thread-status-${thread.id}`}
                           >
                             <SelectValue />

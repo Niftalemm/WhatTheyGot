@@ -308,7 +308,7 @@ export default function AdminThreadDetailPage({ threadId }: AdminThreadDetailPag
       {/* Header */}
       <div className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center space-x-4 min-w-0 flex-1">
               <Button 
                 variant="ghost" 
@@ -334,8 +334,8 @@ export default function AdminThreadDetailPage({ threadId }: AdminThreadDetailPag
               </div>
             </div>
             
-            <div className="flex items-center gap-2">
-              <div className={`flex items-center gap-1 px-2 py-1 rounded-md ${statusInfo.color} text-white`}>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className={`flex items-center gap-1 px-2 py-1 rounded-md ${statusInfo.color} text-white flex-shrink-0`}>
                 <StatusIcon className="w-4 h-4" />
                 <span className="text-xs font-medium" data-testid="thread-status">
                   {statusInfo.label}
@@ -347,7 +347,7 @@ export default function AdminThreadDetailPage({ threadId }: AdminThreadDetailPag
                 onValueChange={handleStatusChange}
                 disabled={statusMutation.isPending}
               >
-                <SelectTrigger className="w-32" data-testid="select-thread-status">
+                <SelectTrigger className="w-full sm:w-32" data-testid="select-thread-status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -372,7 +372,7 @@ export default function AdminThreadDetailPage({ threadId }: AdminThreadDetailPag
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-start gap-4">
+              <div className="flex flex-col sm:flex-row items-start gap-4">
                 {/* Profile Picture */}
                 <div className="flex-shrink-0">
                   <Avatar className="w-16 h-16" data-testid="user-profile-avatar">
@@ -480,7 +480,7 @@ export default function AdminThreadDetailPage({ threadId }: AdminThreadDetailPag
         <div className="space-y-4 mb-6">
           {messages?.map((message) => (
             <Card key={message.id} className={message.isFromAdmin ? "border-l-4 border-l-blue-500" : ""}>
-              <CardContent className="pt-4">
+              <CardContent className="p-4 sm:pt-4 sm:p-6">
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex items-center gap-2">
                     {message.isFromAdmin ? (
@@ -545,7 +545,7 @@ export default function AdminThreadDetailPage({ threadId }: AdminThreadDetailPag
                   {replyContent.length}/2000 characters
                 </p>
               </div>
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                 <p className="text-sm text-muted-foreground">
                   Your reply will be sent as an admin response and will mark the thread as read.
                 </p>
@@ -553,13 +553,14 @@ export default function AdminThreadDetailPage({ threadId }: AdminThreadDetailPag
                   type="submit"
                   disabled={!replyContent.trim() || replyMutation.isPending}
                   data-testid="button-send-admin-reply"
+                  className="w-full sm:w-auto"
                 >
                   {replyMutation.isPending ? (
                     "Sending..."
                   ) : (
                     <>
                       <Send className="w-4 h-4 mr-2" />
-                      Send Admin Reply
+                      Send Reply
                     </>
                   )}
                 </Button>
