@@ -100,6 +100,7 @@ export interface IStorage {
   
   // Admin Messages
   createAdminMessage(message: InsertAdminMessage): Promise<AdminMessage>;
+  getAdminMessage(id: string): Promise<AdminMessage | null>;
   getActiveAdminMessages(page?: string): Promise<AdminMessage[]>;
   getAllAdminMessages(): Promise<AdminMessage[]>;
   updateAdminMessage(id: string, updates: Partial<AdminMessage>): Promise<void>;
@@ -759,6 +760,15 @@ export class DatabaseStorage implements IStorage {
   async createAdminMessage(message: InsertAdminMessage): Promise<AdminMessage> {
     const [created] = await db.insert(adminMessages).values(message as any).returning();
     return created;
+  }
+
+  async getAdminMessage(id: string): Promise<AdminMessage | null> {
+    const [message] = await db
+      .select()
+      .from(adminMessages)
+      .where(eq(adminMessages.id, id))
+      .limit(1);
+    return message || null;
   }
 
   async getActiveAdminMessages(page?: string): Promise<AdminMessage[]> {
