@@ -127,12 +127,33 @@ export const adminMessages = pgTable("admin_messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
   content: text("content").notNull(),
-  type: text("type").notNull(), // announcement, alert, info, warning
+  type: text("type").notNull(), // announcement, alert, info, warning, poll
   isActive: boolean("is_active").default(true),
   showOn: json("show_on").$type<string[]>().default([]), // pages to show on: ['reviews', 'menu', 'all']
+  // Poll-specific fields
+  pollQuestion: text("poll_question"), // Only for poll type messages
+  pollOptions: json("poll_options").$type<string[]>().default([]), // Array of poll option strings
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// Poll votes for real-time poll tracking
+export const pollVotes = pgTable("poll_votes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  pollId: varchar("poll_id").notNull().references(() => adminMessages.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  deviceId: text("device_id"), // Fallback for anonymous voting
+  selectedOption: text("selected_option").notNull(), // The option text the user selected
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  // Ensure one vote per user/device per poll
+  uniqueUserVote: sql`CREATE UNIQUE INDEX IF NOT EXISTS poll_votes_poll_user_unique ON poll_votes (poll_id, user_id) WHERE user_id IS NOT NULL`,
+  uniqueDeviceVote: sql`CREATE UNIQUE INDEX IF NOT EXISTS poll_votes_poll_device_unique ON poll_votes (poll_id, device_id) WHERE device_id IS NOT NULL`,
+  // Ensure accountability: either user_id or device_id must be present
+  identityCheck: sql`CHECK (user_id IS NOT NULL OR device_id IS NOT NULL)`,
+  // Add indexes for performance
+  pollIndex: sql`CREATE INDEX IF NOT EXISTS poll_votes_poll_id_idx ON poll_votes (poll_id)`,
+}));
 
 // Banned devices for content moderation
 export const bannedDevices = pgTable("banned_devices", {
@@ -224,6 +245,21 @@ export const calorieEntriesRelations = relations(calorieEntries, ({ one }) => ({
   }),
 }));
 
+export const adminMessagesRelations = relations(adminMessages, ({ many }) => ({
+  pollVotes: many(pollVotes),
+}));
+
+export const pollVotesRelations = relations(pollVotes, ({ one }) => ({
+  poll: one(adminMessages, {
+    fields: [pollVotes.pollId],
+    references: [adminMessages.id],
+  }),
+  user: one(users, {
+    fields: [pollVotes.userId],
+    references: [users.id],
+  }),
+}));
+
 // Simple auth user types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -311,6 +347,13 @@ export const insertCalorieEntrySchema = createInsertSchema(calorieEntries).omit(
   quantity: z.number().min(1).default(1),
 });
 
+export const insertPollVoteSchema = createInsertSchema(pollVotes).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  selectedOption: z.string().min(1),
+});
+
 // Types (keeping backward compatibility)
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
@@ -343,3 +386,6 @@ export type InsertModerationEvent = z.infer<typeof insertModerationEventSchema>;
 
 export type CalorieEntry = typeof calorieEntries.$inferSelect;
 export type InsertCalorieEntry = z.infer<typeof insertCalorieEntrySchema>;
+
+export type PollVote = typeof pollVotes.$inferSelect;
+export type InsertPollVote = z.infer<typeof insertPollVoteSchema>;

@@ -15,9 +15,11 @@ interface AdminMessage {
   id: string;
   title: string;
   content: string;
-  type: 'announcement' | 'alert' | 'info' | 'warning';
+  type: 'announcement' | 'alert' | 'info' | 'warning' | 'poll';
   isActive: boolean;
   showOn: string[];
+  pollQuestion?: string;
+  pollOptions?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -27,6 +29,7 @@ const MESSAGE_TYPES = [
   { value: 'alert', label: 'Alert', color: 'bg-red-500' },
   { value: 'info', label: 'Information', color: 'bg-gray-500' },
   { value: 'warning', label: 'Warning', color: 'bg-yellow-500' },
+  { value: 'poll', label: 'Poll', color: 'bg-green-500' },
 ];
 
 const SHOW_ON_OPTIONS = [
@@ -49,6 +52,8 @@ export default function AdminMessages() {
     type: 'announcement' as const,
     isActive: true,
     showOn: ['all'] as string[],
+    pollQuestion: '',
+    pollOptions: ['', ''] as string[],
   });
 
   useEffect(() => {
@@ -90,6 +95,31 @@ export default function AdminMessages() {
     }));
   };
 
+  const addPollOption = () => {
+    if (messageForm.pollOptions.length < 5) {
+      setMessageForm(prev => ({
+        ...prev,
+        pollOptions: [...prev.pollOptions, '']
+      }));
+    }
+  };
+
+  const removePollOption = (index: number) => {
+    if (messageForm.pollOptions.length > 2) {
+      setMessageForm(prev => ({
+        ...prev,
+        pollOptions: prev.pollOptions.filter((_, i) => i !== index)
+      }));
+    }
+  };
+
+  const updatePollOption = (index: number, value: string) => {
+    setMessageForm(prev => ({
+      ...prev,
+      pollOptions: prev.pollOptions.map((option, i) => i === index ? value : option)
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -123,6 +153,8 @@ export default function AdminMessages() {
           type: 'announcement',
           isActive: true,
           showOn: ['all'],
+          pollQuestion: '',
+          pollOptions: ['', ''],
         });
         setShowForm(false);
         setEditingMessage(null);
@@ -149,6 +181,8 @@ export default function AdminMessages() {
       type: message.type as any,
       isActive: message.isActive,
       showOn: message.showOn || ['all'],
+      pollQuestion: message.pollQuestion || '',
+      pollOptions: message.pollOptions && message.pollOptions.length > 0 ? message.pollOptions : ['', ''],
     });
     setShowForm(true);
   };
@@ -225,44 +259,59 @@ export default function AdminMessages() {
       {/* Header */}
       <div className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Button 
-                variant="ghost" 
-                onClick={() => setLocation('/admin/dashboard')}
-                data-testid="button-back-to-dashboard"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Dashboard
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold">Message Management</h1>
-                <p className="text-muted-foreground">Create announcements and alerts for students</p>
+          {/* Mobile-friendly header layout */}
+          <div className="space-y-4">
+            {/* Top row: Back button and title */}
+            <div className="flex items-start justify-between">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center space-x-4 mb-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setLocation('/admin/dashboard')}
+                    data-testid="button-back-to-dashboard"
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    <span className="hidden sm:inline">Back to Dashboard</span>
+                    <span className="sm:hidden">Back</span>
+                  </Button>
+                </div>
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-bold">Message Management</h1>
+                  <p className="text-sm text-muted-foreground">Create announcements, alerts, and polls for students</p>
+                </div>
               </div>
             </div>
-            <Button 
-              onClick={() => {
-                setShowForm(!showForm);
-                setEditingMessage(null);
-                setMessageForm({
-                  title: '',
-                  content: '',
-                  type: 'announcement',
-                  isActive: true,
-                  showOn: ['all'],
-                });
-              }}
-              data-testid="button-new-message"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              New Message
-            </Button>
+            
+            {/* Bottom row: Action button */}
+            <div className="flex justify-center sm:justify-end">
+              <Button 
+                onClick={() => {
+                  setShowForm(!showForm);
+                  setEditingMessage(null);
+                  setMessageForm({
+                    title: '',
+                    content: '',
+                    type: 'announcement',
+                    isActive: true,
+                    showOn: ['all'],
+                    pollQuestion: '',
+                    pollOptions: ['', ''],
+                  });
+                }}
+                className="w-full sm:w-auto"
+                data-testid="button-new-message"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                New Message
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="space-y-6 lg:grid lg:grid-cols-3 lg:gap-6 lg:space-y-0">
           
           {/* Message Form */}
           {showForm && (
@@ -300,6 +349,59 @@ export default function AdminMessages() {
                         data-testid="textarea-message-content"
                       />
                     </div>
+
+                    {/* Poll-specific fields */}
+                    {messageForm.type === 'poll' && (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="pollQuestion">Poll Question</Label>
+                          <Input
+                            id="pollQuestion"
+                            placeholder="What question would you like to ask?"
+                            value={messageForm.pollQuestion}
+                            onChange={(e) => setMessageForm(prev => ({ ...prev, pollQuestion: e.target.value }))}
+                            required
+                            data-testid="input-poll-question"
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label>Poll Options</Label>
+                          {messageForm.pollOptions.map((option, index) => (
+                            <div key={index} className="flex space-x-2">
+                              <Input
+                                placeholder={`Option ${index + 1}`}
+                                value={option}
+                                onChange={(e) => updatePollOption(index, e.target.value)}
+                                required
+                                data-testid={`input-poll-option-${index}`}
+                              />
+                              {messageForm.pollOptions.length > 2 && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => removePollOption(index)}
+                                  data-testid={`button-remove-option-${index}`}
+                                >
+                                  Remove
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                          {messageForm.pollOptions.length < 5 && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={addPollOption}
+                              data-testid="button-add-option"
+                            >
+                              Add Option
+                            </Button>
+                          )}
+                        </div>
+                      </>
+                    )}
 
                     <div className="space-y-2">
                       <Label>Message Type</Label>

@@ -22,6 +22,8 @@ import {
   type InsertReviewReport,
   type CalorieEntry,
   type InsertCalorieEntry,
+  type PollVote,
+  type InsertPollVote,
   menuItems,
   reviews,
   reports,
@@ -33,6 +35,7 @@ import {
   emailCodes,
   reviewReports,
   calorieEntries,
+  pollVotes,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, or, isNull, sql } from "drizzle-orm";
@@ -123,6 +126,11 @@ export interface IStorage {
   createCalorieEntry(entry: InsertCalorieEntry): Promise<CalorieEntry>;
   updateCalorieEntryQuantity(id: string, quantity: number): Promise<void>;
   deleteCalorieEntry(id: string): Promise<void>;
+
+  // Poll Votes
+  castPollVote(vote: InsertPollVote): Promise<PollVote>;
+  getPollResults(pollId: string): Promise<{ option: string; count: number }[]>;
+  getUserPollVote(pollId: string, userId?: string, deviceId?: string): Promise<PollVote | undefined>;
   cleanupOldCalorieEntries(): Promise<number>;
 }
 
@@ -886,6 +894,62 @@ export class DatabaseStorage implements IStorage {
       .where(sql`${calorieEntries.mealDate} < ${today}`);
     
     return result.rowCount || 0;
+  }
+
+  // Poll Votes
+  async castPollVote(vote: InsertPollVote): Promise<PollVote> {
+    // First, try to update existing vote for this user/device and poll
+    const whereClause = vote.userId 
+      ? and(eq(pollVotes.pollId, vote.pollId), eq(pollVotes.userId, vote.userId))
+      : and(eq(pollVotes.pollId, vote.pollId), eq(pollVotes.deviceId, vote.deviceId!));
+
+    // Check if user already voted
+    const existingVote = await db
+      .select()
+      .from(pollVotes)
+      .where(whereClause)
+      .limit(1);
+
+    if (existingVote.length > 0) {
+      // Update existing vote
+      const [updated] = await db
+        .update(pollVotes)
+        .set({ selectedOption: vote.selectedOption })
+        .where(eq(pollVotes.id, existingVote[0].id))
+        .returning();
+      return updated;
+    } else {
+      // Create new vote
+      const [created] = await db.insert(pollVotes).values(vote).returning();
+      return created;
+    }
+  }
+
+  async getPollResults(pollId: string): Promise<{ option: string; count: number }[]> {
+    const results = await db
+      .select({
+        option: pollVotes.selectedOption,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(pollVotes)
+      .where(eq(pollVotes.pollId, pollId))
+      .groupBy(pollVotes.selectedOption);
+
+    return results;
+  }
+
+  async getUserPollVote(pollId: string, userId?: string, deviceId?: string): Promise<PollVote | undefined> {
+    const whereClause = userId 
+      ? and(eq(pollVotes.pollId, pollId), eq(pollVotes.userId, userId))
+      : and(eq(pollVotes.pollId, pollId), eq(pollVotes.deviceId, deviceId!));
+
+    const result = await db
+      .select()
+      .from(pollVotes)
+      .where(whereClause)
+      .limit(1);
+
+    return result[0];
   }
 }
 

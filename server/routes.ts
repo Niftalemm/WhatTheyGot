@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertReviewSchema, insertReportSchema, insertAdminMessageSchema, insertMenuItemSchema, insertUserSchema, insertReviewReportSchema, insertCalorieEntrySchema, reviews, bannedDevices, users, User } from "@shared/schema";
+import { insertReviewSchema, insertReportSchema, insertAdminMessageSchema, insertMenuItemSchema, insertUserSchema, insertReviewReportSchema, insertCalorieEntrySchema, insertPollVoteSchema, reviews, bannedDevices, users, User } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { menuScraper } from "./scraper";
 import jwt from "jsonwebtoken";
@@ -1382,6 +1382,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting admin message:", error);
       res.status(500).json({ error: "Failed to delete message" });
+    }
+  });
+
+  // Poll Management
+  app.post("/api/polls/:pollId/vote", async (req, res) => {
+    try {
+      const { pollId } = req.params;
+      const { selectedOption } = req.body;
+      const deviceId = generateDeviceId(req);
+      
+      // Validate input
+      if (!selectedOption) {
+        return res.status(400).json({ error: "Selected option is required" });
+      }
+
+      // Check if user is authenticated
+      const userId = req.session?.user?.id;
+
+      const voteData = insertPollVoteSchema.parse({
+        pollId,
+        selectedOption,
+        userId: userId || undefined,
+        deviceId: userId ? undefined : deviceId,
+      });
+
+      const vote = await storage.castPollVote(voteData);
+      res.json({ success: true, vote });
+    } catch (error) {
+      console.error("Error casting vote:", error);
+      res.status(500).json({ error: "Failed to cast vote" });
+    }
+  });
+
+  app.get("/api/polls/:pollId/results", async (req, res) => {
+    try {
+      const { pollId } = req.params;
+      const results = await storage.getPollResults(pollId);
+      res.json(results);
+    } catch (error) {
+      console.error("Error fetching poll results:", error);
+      res.status(500).json({ error: "Failed to fetch poll results" });
+    }
+  });
+
+  app.get("/api/polls/:pollId/user-vote", async (req, res) => {
+    try {
+      const { pollId } = req.params;
+      const deviceId = generateDeviceId(req);
+      const userId = req.session?.user?.id;
+
+      const userVote = await storage.getUserPollVote(pollId, userId, deviceId);
+      res.json({ userVote });
+    } catch (error) {
+      console.error("Error fetching user vote:", error);
+      res.status(500).json({ error: "Failed to fetch user vote" });
     }
   });
 
