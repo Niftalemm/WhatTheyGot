@@ -327,7 +327,7 @@ export default function ProfilePage() {
         <Card>
           <CardContent className="pt-6">
             <div className="space-y-3">
-              <Link to="/menu" className="block">
+              <Link to="/" className="block">
                 <Button variant="outline" className="w-full" data-testid="button-menu">
                   <UtensilsCrossed className="w-4 h-4 mr-2" />
                   Menu

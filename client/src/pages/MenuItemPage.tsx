@@ -8,7 +8,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { ArrowLeft, Star, MessageCircle, Flag, AlertTriangle } from "lucide-react";
+import {
+  ArrowLeft,
+  Star,
+  MessageCircle,
+  Flag,
+  AlertTriangle,
+} from "lucide-react";
 import { useLocation } from "wouter";
 import { formatDistanceToNowCDT } from "@/lib/timezone";
 import type { MenuItem, Review, User } from "@shared/schema";
@@ -20,10 +26,13 @@ interface MenuItemPageProps {
 }
 
 // Helper functions for user display
-function computeDisplayName(firstName: string | null, lastName: string | null): string {
+function computeDisplayName(
+  firstName: string | null,
+  lastName: string | null,
+): string {
   const first = firstName?.trim() || "";
   const last = lastName?.trim() || "";
-  
+
   if (first && last) {
     return `${first} ${last}`;
   } else if (first) {
@@ -35,10 +44,13 @@ function computeDisplayName(firstName: string | null, lastName: string | null): 
   }
 }
 
-function getInitials(firstName: string | null, lastName: string | null): string {
+function getInitials(
+  firstName: string | null,
+  lastName: string | null,
+): string {
   const first = firstName?.trim() || "";
   const last = lastName?.trim() || "";
-  
+
   if (first && last) {
     return (first[0] + last[0]).toUpperCase();
   } else if (first) {
@@ -50,7 +62,6 @@ function getInitials(firstName: string | null, lastName: string | null): string 
   }
 }
 
-
 export default function MenuItemPage({ itemId }: MenuItemPageProps) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -58,47 +69,50 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [reviewModal, setReviewModal] = useState({
     isOpen: false,
-    itemName: '',
+    itemName: "",
   });
   const [reportModal, setReportModal] = useState({
     isOpen: false,
-    reviewId: '',
+    reviewId: "",
   });
 
   // Load saved profile image
   useEffect(() => {
-    const savedImage = localStorage.getItem('userProfileImage');
+    const savedImage = localStorage.getItem("userProfileImage");
     setProfileImage(savedImage);
   }, [user]);
 
   // Fetch menu item details
   const { data: menuItem, isLoading: isLoadingItem } = useQuery<MenuItem>({
-    queryKey: ['/api/menu-item', itemId],
+    queryKey: ["/api/menu-item", itemId],
     enabled: !!itemId,
   });
 
   // Fetch reviews for this item
-  const { data: reviews = [], isLoading: isLoadingReviews } = useQuery<Review[]>({
-    queryKey: ['/api/reviews', itemId],
+  const { data: reviews = [], isLoading: isLoadingReviews } = useQuery<
+    Review[]
+  >({
+    queryKey: ["/api/reviews", itemId],
     enabled: !!itemId,
   });
 
   // Calculate average rating
-  const averageRating = reviews.length > 0 
-    ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length 
-    : 0;
+  const averageRating =
+    reviews.length > 0
+      ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
+      : 0;
 
   // Submit review mutation
   const reviewMutation = useMutation({
     mutationFn: async (reviewData: any) => {
-      return apiRequest('POST', '/api/reviews', {
+      return apiRequest("POST", "/api/reviews", {
         menuItemId: itemId,
         ...reviewData,
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/reviews', itemId] });
-      queryClient.invalidateQueries({ queryKey: ['/api/reviews/recent'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/reviews", itemId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/reviews/recent"] });
       toast({
         title: "Review submitted!",
         description: "Thank you for your feedback.",
@@ -120,21 +134,26 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
 
   // Report review mutation
   const reportMutation = useMutation({
-    mutationFn: async (reportData: { reviewId: string; reason: string; details?: string }) => {
-      return apiRequest('POST', `/api/review-reports`, {
+    mutationFn: async (reportData: {
+      reviewId: string;
+      reason: string;
+      details?: string;
+    }) => {
+      return apiRequest("POST", `/api/review-reports`, {
         reviewId: reportData.reviewId,
         reason: reportData.reason,
         details: reportData.details,
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/reviews', itemId] });
-      queryClient.invalidateQueries({ queryKey: ['/api/reviews/recent'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/reviews", itemId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/reviews/recent"] });
       toast({
         title: "Report submitted",
-        description: "Thank you for reporting this review. It has been hidden and will be reviewed by moderators.",
+        description:
+          "Thank you for reporting this review. It has been hidden and will be reviewed by moderators.",
       });
-      setReportModal({ isOpen: false, reviewId: '' });
+      setReportModal({ isOpen: false, reviewId: "" });
     },
     onError: (error: any) => {
       toast({
@@ -149,7 +168,10 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
     setReportModal({ isOpen: true, reviewId });
   };
 
-  const handleReportSubmit = (reportData: { reason: string; details?: string }) => {
+  const handleReportSubmit = (reportData: {
+    reason: string;
+    details?: string;
+  }) => {
     reportMutation.mutate({
       reviewId: reportModal.reviewId,
       ...reportData,
@@ -157,19 +179,23 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
   };
 
   // Check if meal period is currently open for reviews
-  const checkMealPeriodStatus = (mealPeriod: string): { isOpen: boolean; reason?: string; nextOpening?: string } => {
+  const checkMealPeriodStatus = (
+    mealPeriod: string,
+  ): { isOpen: boolean; reason?: string; nextOpening?: string } => {
     // Use America/Chicago timezone (same as backend)
     const now = new Date();
-    const chicagoTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Chicago" }));
+    const chicagoTime = new Date(
+      now.toLocaleString("en-US", { timeZone: "America/Chicago" }),
+    );
     const hour = chicagoTime.getHours() + chicagoTime.getMinutes() / 60;
     const dayOfWeek = chicagoTime.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    
+
     // Operating hours (same as backend)
     const operatingHours = {
       breakfast: { start: 7, end: 9.5 }, // 7:00 AM - 9:30 AM
-      lunch: { start: 11, end: 14 }, // 11:00 AM - 2:00 PM  
+      lunch: { start: 11, end: 14 }, // 11:00 AM - 2:00 PM
       liteDinner: { start: 14, end: 16 }, // 2:00 PM - 4:00 PM
-      dinner: { start: 17, end: dayOfWeek === 5 ? 20 : 21 } // 5:00 PM - 9:00 PM (8 PM Friday)
+      dinner: { start: 17, end: dayOfWeek === 5 ? 20 : 21 }, // 5:00 PM - 9:00 PM (8 PM Friday)
     };
 
     const mealHours = operatingHours[mealPeriod as keyof typeof operatingHours];
@@ -186,9 +212,10 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
     const formatTime = (hourNum: number) => {
       const hours = Math.floor(hourNum);
       const minutes = Math.round((hourNum - hours) * 60);
-      const period = hours >= 12 ? 'PM' : 'AM';
-      const displayHour = hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours);
-      const displayMinutes = minutes === 0 ? '' : `:${minutes.toString().padStart(2, '0')}`;
+      const period = hours >= 12 ? "PM" : "AM";
+      const displayHour = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+      const displayMinutes =
+        minutes === 0 ? "" : `:${minutes.toString().padStart(2, "0")}`;
       return `${displayHour}${displayMinutes} ${period}`;
     };
 
@@ -201,23 +228,27 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
       nextOpening = `tomorrow at ${formatTime(mealHours.start)}`;
     }
 
-    const periodName = mealPeriod === 'liteDinner' ? 'Lite Dinner' : 
-                      mealPeriod.charAt(0).toUpperCase() + mealPeriod.slice(1);
-                      
+    const periodName =
+      mealPeriod === "liteDinner"
+        ? "Lite Dinner"
+        : mealPeriod.charAt(0).toUpperCase() + mealPeriod.slice(1);
+
     return {
       isOpen: false,
       reason: `${periodName} reviews are only available during serving hours (${formatTime(mealHours.start)} - ${formatTime(mealHours.end)})`,
-      nextOpening: `Reviews will be available ${nextOpening}`
+      nextOpening: `Reviews will be available ${nextOpening}`,
     };
   };
 
   // Transform reviews for display with real user data
   const transformReview = (review: Review & { user?: User }) => {
-    const displayName = review.user ? computeDisplayName(review.user.firstName, review.user.lastName) : 'Anonymous User';
-    const initials = review.user 
+    const displayName = review.user
+      ? computeDisplayName(review.user.firstName, review.user.lastName)
+      : "Anonymous User";
+    const initials = review.user
       ? getInitials(review.user.firstName, review.user.lastName)
-      : 'AU';
-    
+      : "AU";
+
     return {
       id: review.id,
       userName: displayName,
@@ -253,7 +284,10 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
             <p className="text-muted-foreground mb-4">
               The menu item you're looking for could not be found.
             </p>
-            <Button onClick={() => setLocation("/")} data-testid="button-back-to-menu">
+            <Button
+              onClick={() => setLocation("/")}
+              data-testid="button-back-to-menu"
+            >
               Back to Menu
             </Button>
           </CardContent>
@@ -289,11 +323,14 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
             </div>
             <div className="flex items-center gap-2">
               <Star className="w-5 h-5 fill-primary text-primary" />
-              <span className="text-xl font-semibold" data-testid="text-avg-rating">
+              <span
+                className="text-xl font-semibold"
+                data-testid="text-avg-rating"
+              >
                 {averageRating.toFixed(1)}
               </span>
               <span className="text-sm text-muted-foreground">
-                ({reviews.length} {reviews.length === 1 ? 'review' : 'reviews'})
+                ({reviews.length} {reviews.length === 1 ? "review" : "reviews"})
               </span>
             </div>
           </div>
@@ -313,7 +350,11 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
                 <h4 className="font-medium mb-1">Allergens</h4>
                 <div className="flex flex-wrap gap-1">
                   {menuItem.allergens.map((allergen: string) => (
-                    <Badge key={allergen} variant="outline" data-testid={`badge-allergen-${allergen}`}>
+                    <Badge
+                      key={allergen}
+                      variant="outline"
+                      data-testid={`badge-allergen-${allergen}`}
+                    >
                       {allergen}
                     </Badge>
                   ))}
@@ -329,7 +370,7 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
         {(() => {
           const mealStatus = checkMealPeriodStatus(menuItem.mealPeriod);
           const isDisabled = !mealStatus.isOpen;
-          
+
           return (
             <div>
               <Button
@@ -355,7 +396,10 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
                 Write a Review
               </Button>
               {isDisabled && (
-                <p className="text-sm text-muted-foreground mt-2" data-testid="text-review-closed-notice">
+                <p
+                  className="text-sm text-muted-foreground mt-2"
+                  data-testid="text-review-closed-notice"
+                >
                   {mealStatus.nextOpening}
                 </p>
               )}
@@ -366,7 +410,10 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
 
       {/* Reviews section */}
       <div>
-        <h2 className="text-xl font-semibold mb-4" data-testid="text-reviews-title">
+        <h2
+          className="text-xl font-semibold mb-4"
+          data-testid="text-reviews-title"
+        >
           Reviews ({reviews.length})
         </h2>
 
@@ -397,7 +444,7 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
               {(() => {
                 const mealStatus = checkMealPeriodStatus(menuItem.mealPeriod);
                 const isDisabled = !mealStatus.isOpen;
-                
+
                 return (
                   <div>
                     <Button
@@ -421,7 +468,10 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
                       Write First Review
                     </Button>
                     {isDisabled && (
-                      <p className="text-sm text-muted-foreground mt-3" data-testid="text-first-review-closed-notice">
+                      <p
+                        className="text-sm text-muted-foreground mt-3"
+                        data-testid="text-first-review-closed-notice"
+                      >
                         {mealStatus.nextOpening}
                       </p>
                     )}
@@ -440,12 +490,13 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
                     <div className="flex gap-3">
                       <Avatar className="w-10 h-10">
                         {transformedReview.profileImageUrl ? (
-                          <AvatarImage src={transformedReview.profileImageUrl} alt={`${transformedReview.userName}'s profile`} />
-                        ) : (
-                          review.userId === user?.id && profileImage ? (
-                            <AvatarImage src={profileImage} alt="Your profile" />
-                          ) : null
-                        )}
+                          <AvatarImage
+                            src={transformedReview.profileImageUrl}
+                            alt={`${transformedReview.userName}'s profile`}
+                          />
+                        ) : review.userId === user?.id && profileImage ? (
+                          <AvatarImage src={profileImage} alt="Your profile" />
+                        ) : null}
                         <AvatarFallback className="text-sm">
                           {transformedReview.userInitials}
                         </AvatarFallback>
@@ -453,7 +504,10 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
-                            <span className="font-medium text-sm" data-testid={`text-reviewer-${review.id}`}>
+                            <span
+                              className="font-medium text-sm"
+                              data-testid={`text-reviewer-${review.id}`}
+                            >
                               {transformedReview.userName}
                             </span>
                             <div className="flex items-center gap-1">
@@ -462,14 +516,17 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
                                   key={star}
                                   className={`w-4 h-4 ${
                                     star <= review.rating
-                                      ? 'fill-primary text-primary'
-                                      : 'text-muted-foreground'
+                                      ? "fill-primary text-primary"
+                                      : "text-muted-foreground"
                                   }`}
                                 />
                               ))}
                             </div>
                             {review.emoji && (
-                              <span className="text-lg" data-testid={`emoji-${review.id}`}>
+                              <span
+                                className="text-lg"
+                                data-testid={`emoji-${review.id}`}
+                              >
                                 {review.emoji}
                               </span>
                             )}
@@ -490,7 +547,10 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
                           </div>
                         </div>
                         {review.text && (
-                          <p className="text-sm leading-relaxed" data-testid={`text-review-content-${review.id}`}>
+                          <p
+                            className="text-sm leading-relaxed"
+                            data-testid={`text-review-content-${review.id}`}
+                          >
                             {review.text}
                           </p>
                         )}
@@ -515,7 +575,7 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
       {/* Report Review Modal */}
       <ReportReviewModal
         isOpen={reportModal.isOpen}
-        onClose={() => setReportModal({ isOpen: false, reviewId: '' })}
+        onClose={() => setReportModal({ isOpen: false, reviewId: "" })}
         reviewId={reportModal.reviewId}
         onSubmit={handleReportSubmit}
       />
