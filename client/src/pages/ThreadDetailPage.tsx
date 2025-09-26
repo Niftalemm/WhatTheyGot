@@ -80,10 +80,7 @@ export default function ThreadDetailPage({ threadId }: ThreadDetailPageProps) {
 
   const replyMutation = useMutation({
     mutationFn: (content: string) => 
-      apiRequest(`/api/threads/${threadId}/messages`, {
-        method: "POST",
-        body: JSON.stringify({ content }),
-      }),
+      apiRequest("POST", `/api/threads/${threadId}/messages`, { content }),
     onSuccess: (data) => {
       toast({
         title: "Reply sent",

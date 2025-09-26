@@ -20,10 +20,7 @@ export default function NewMessagePage() {
 
   const createThreadMutation = useMutation({
     mutationFn: (data: { subject: string; content: string }) => 
-      apiRequest("/api/threads", {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
+      apiRequest("POST", "/api/threads", data),
     onSuccess: (data) => {
       toast({
         title: "Message sent",
