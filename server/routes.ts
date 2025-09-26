@@ -1427,12 +1427,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const results = await storage.getPollResults(pollId);
       const message = await storage.getAdminMessage(pollId);
       
+      // Parse pollOptions if it's a string (double-encoded JSON)
+      let pollOptionsArray = message?.pollOptions;
+      if (typeof pollOptionsArray === 'string') {
+        try {
+          pollOptionsArray = JSON.parse(pollOptionsArray);
+        } catch (parseError) {
+          console.error("Error parsing pollOptions:", parseError);
+          pollOptionsArray = [];
+        }
+      }
+      
       // Create options array with IDs for frontend compatibility
-      const options = message?.pollOptions?.map((optionText, index) => ({
+      const options = pollOptionsArray?.map((optionText: string, index: number) => ({
         id: `${pollId}-option-${index}`,
         optionText,
       })) || [];
 
+      console.log(`Poll ${pollId} options:`, options);
       res.json({ results, options });
     } catch (error) {
       console.error("Error fetching poll results:", error);
