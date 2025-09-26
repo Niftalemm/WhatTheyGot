@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { LogOut, User, Star, MessageSquare, Camera, TrendingUp, AlertCircle, Info, Warning, BarChart3, Bell } from "lucide-react";
+import { LogOut, User, Star, MessageSquare, Camera, TrendingUp, AlertCircle, Info, AlertTriangle, BarChart3, Bell } from "lucide-react";
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useState } from 'react';
@@ -72,10 +72,14 @@ export default function Home() {
         const response = await fetch(`/api/polls/${message.id}/results`);
         const data = await response.json();
         
+        console.log('Poll Results API response:', data);
+        console.log('Message results revealed:', message.resultsRevealed);
+        
         // Check if user has already voted
         const voteResponse = await fetch(`/api/polls/${message.id}/user-vote`);
         if (voteResponse.ok) {
           const voteData = await voteResponse.json();
+          console.log('User vote data:', voteData);
           if (voteData.hasVoted) {
             setHasVoted(true);
             setSelectedOption(voteData.optionId);
@@ -117,6 +121,14 @@ export default function Home() {
     };
 
     const totalVotes = pollResults?.results?.reduce((sum: number, result: any) => sum + result.voteCount, 0) || 0;
+
+    console.log('HomePollDisplay render:', {
+      messageType: message.type,
+      resultsRevealed: message.resultsRevealed,
+      hasVoted,
+      pollResults,
+      optionsLength: pollResults?.options?.length
+    });
 
     return (
       <div className="space-y-4">
@@ -189,7 +201,7 @@ export default function Home() {
   const getMessageIcon = (type: string) => {
     switch (type) {
       case 'alert': return <AlertCircle className="w-4 h-4" />;
-      case 'warning': return <Warning className="w-4 h-4" />;
+      case 'warning': return <AlertTriangle className="w-4 h-4" />;
       case 'info': return <Info className="w-4 h-4" />;
       case 'poll': return <BarChart3 className="w-4 h-4" />;
       default: return <Bell className="w-4 h-4" />;
@@ -239,35 +251,45 @@ export default function Home() {
               Campus Updates
             </h2>
             <div className="space-y-4">
-              {messages.map((message: Message) => (
-                <Card key={message.id} className={`${getMessageColor(message.type)} border`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start space-x-3">
-                      <div className="mt-1">
-                        {getMessageIcon(message.type)}
+              {messages.map((message: Message) => {
+                console.log('Processing message:', {
+                  id: message.id,
+                  type: message.type,
+                  title: message.title,
+                  isPoll: message.type === 'poll',
+                  hasHomePollDisplay: message.type === 'poll'
+                });
+                
+                return (
+                  <Card key={message.id} className={`${getMessageColor(message.type)} border`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start space-x-3">
+                        <div className="mt-1">
+                          {getMessageIcon(message.type)}
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-medium text-sm mb-1">{message.title}</h3>
+                          <p className="text-sm text-muted-foreground mb-3">{message.content}</p>
+                          
+                          {/* Display poll voting interface for poll messages */}
+                          {message.type === 'poll' && (
+                            <HomePollDisplay message={message} />
+                          )}
+                          
+                          <p className="text-xs text-muted-foreground mt-2">
+                            {new Date(message.createdAt).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <h3 className="font-medium text-sm mb-1">{message.title}</h3>
-                        <p className="text-sm text-muted-foreground mb-3">{message.content}</p>
-                        
-                        {/* Display poll voting interface for poll messages */}
-                        {message.type === 'poll' && (
-                          <HomePollDisplay message={message} />
-                        )}
-                        
-                        <p className="text-xs text-muted-foreground mt-2">
-                          {new Date(message.createdAt).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </div>
         )}
