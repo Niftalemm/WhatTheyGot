@@ -485,9 +485,9 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
             {reviews.map((review: Review) => {
               const transformedReview = transformReview(review);
               return (
-                <Card key={review.id} data-testid={`card-review-${review.id}`}>
-                  <CardContent className="p-4">
-                    <div className="flex gap-3">
+                <Card key={review.id} className="hover-elevate" data-testid={`card-review-${review.id}`}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start gap-3">
                       <Avatar className="w-10 h-10">
                         {transformedReview.profileImageUrl ? (
                           <AvatarImage
@@ -497,12 +497,13 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
                         ) : review.userId === user?.id && profileImage ? (
                           <AvatarImage src={profileImage} alt="Your profile" />
                         ) : null}
-                        <AvatarFallback className="text-sm">
+                        <AvatarFallback className="text-sm font-medium">
                           {transformedReview.userInitials}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-2">
+                      
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between gap-2 mb-1">
                           <div className="flex items-center gap-2">
                             <span
                               className="font-medium text-sm"
@@ -511,11 +512,11 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
                               {transformedReview.userName}
                             </span>
                             <div className="flex items-center gap-1">
-                              {[1, 2, 3, 4, 5].map((star) => (
+                              {[...Array(5)].map((_, i) => (
                                 <Star
-                                  key={star}
-                                  className={`w-4 h-4 ${
-                                    star <= review.rating
+                                  key={i}
+                                  className={`w-3 h-3 ${
+                                    i < review.rating
                                       ? "fill-primary text-primary"
                                       : "text-muted-foreground"
                                   }`}
@@ -531,31 +532,33 @@ export default function MenuItemPage({ itemId }: MenuItemPageProps) {
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">
-                              {transformedReview.timeAgo}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0"
-                              onClick={() => handleReportReview(review.id)}
-                              data-testid={`button-report-${review.id}`}
-                            >
-                              <Flag className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </div>
-                        {review.text && (
-                          <p
-                            className="text-sm leading-relaxed"
-                            data-testid={`text-review-content-${review.id}`}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => handleReportReview(review.id)}
+                            data-testid={`button-report-${review.id}`}
                           >
-                            {review.text}
-                          </p>
-                        )}
+                            <Flag className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{transformedReview.timeAgo}</span>
+                        </div>
                       </div>
                     </div>
+                  </CardHeader>
+                  
+                  <CardContent className="pt-0">
+                    {review.text && (
+                      <p
+                        className="text-sm leading-relaxed"
+                        data-testid={`text-review-content-${review.id}`}
+                      >
+                        {review.text}
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               );

@@ -11,7 +11,44 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { formatTimeCDT } from "@/lib/timezone";
-import type { MenuItem, Review } from "@shared/schema";
+import type { MenuItem, Review, User } from "@shared/schema";
+
+// Helper function to compute display name from firstName and lastName
+function computeDisplayName(
+  firstName: string | null,
+  lastName: string | null,
+): string {
+  const first = firstName?.trim() || "";
+  const last = lastName?.trim() || "";
+
+  if (first && last) {
+    return `${first} ${last}`;
+  } else if (first) {
+    return first;
+  } else if (last) {
+    return last;
+  } else {
+    return "Anonymous User";
+  }
+}
+
+function getInitials(
+  firstName: string | null,
+  lastName: string | null,
+): string {
+  const first = firstName?.trim() || "";
+  const last = lastName?.trim() || "";
+
+  if (first && last) {
+    return (first[0] + last[0]).toUpperCase();
+  } else if (first) {
+    return first.slice(0, 2).toUpperCase();
+  } else if (last) {
+    return last.slice(0, 2).toUpperCase();
+  } else {
+    return "AU";
+  }
+}
 
 export default function ReviewsPage() {
   const today = new Date().toISOString().split('T')[0];
@@ -127,21 +164,37 @@ export default function ReviewsPage() {
                   <Avatar className="w-10 h-10">
                     {(() => {
                       const isMyReview = (review.user?.id === user?.id) || (review.userId === user?.id);
-                      console.log('DEBUG - Review:', {
-                        reviewId: review.id,
-                        reviewUserId: review.userId,
-                        reviewUserObjectId: review.user?.id,
-                        currentUserId: user?.id,
-                        isMyReview,
-                        hasProfileImage: !!profileImage,
-                        willShowImage: isMyReview && profileImage
-                      });
-                      return isMyReview && profileImage ? (
-                        <AvatarImage src={profileImage} alt={review.user?.displayName || "User"} />
-                      ) : null;
+                      
+                      // First try database profileImageUrl for any user
+                      if (review.user?.profileImageUrl) {
+                        return (
+                          <AvatarImage 
+                            src={review.user.profileImageUrl} 
+                            alt={review.user 
+                              ? computeDisplayName(review.user.firstName, review.user.lastName) 
+                              : "User"} 
+                          />
+                        );
+                      }
+                      
+                      // Fallback to localStorage for current user only
+                      if (isMyReview && profileImage) {
+                        return (
+                          <AvatarImage 
+                            src={profileImage} 
+                            alt={review.user 
+                              ? computeDisplayName(review.user.firstName, review.user.lastName) 
+                              : "User"} 
+                          />
+                        );
+                      }
+                      
+                      return null;
                     })()}
                     <AvatarFallback className="text-sm font-medium">
-                      {review.user?.displayName?.substring(0, 2).toUpperCase() || "??"}
+                      {review.user 
+                        ? getInitials(review.user.firstName, review.user.lastName)
+                        : "AU"}
                     </AvatarFallback>
                   </Avatar>
                   
@@ -149,7 +202,9 @@ export default function ReviewsPage() {
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-sm" data-testid={`text-reviewer-${review.id}`}>
-                          {review.user?.displayName || "Anonymous"}
+                          {review.user 
+                            ? computeDisplayName(review.user.firstName, review.user.lastName)
+                            : "Anonymous User"}
                         </span>
                         <div className="flex items-center gap-1">
                           {[...Array(5)].map((_, i) => (
