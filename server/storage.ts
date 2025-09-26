@@ -24,6 +24,10 @@ import {
   type InsertCalorieEntry,
   type PollVote,
   type InsertPollVote,
+  type MessageThread,
+  type InsertMessageThread,
+  type Message,
+  type InsertMessage,
   menuItems,
   reviews,
   reports,
@@ -36,6 +40,8 @@ import {
   reviewReports,
   calorieEntries,
   pollVotes,
+  messageThreads,
+  messages,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, or, isNull, sql } from "drizzle-orm";
@@ -133,6 +139,21 @@ export interface IStorage {
   getPollResults(pollId: string): Promise<{ option: string; count: number }[]>;
   getUserPollVote(pollId: string, userId?: string, deviceId?: string): Promise<PollVote | undefined>;
   cleanupOldCalorieEntries(): Promise<number>;
+
+  // Message Threads
+  createMessageThread(thread: InsertMessageThread): Promise<MessageThread>;
+  getUserMessageThreads(userId?: string, deviceId?: string): Promise<(MessageThread & { lastMessage?: Message })[]>;
+  getMessageThread(id: string): Promise<MessageThread | undefined>;
+  updateMessageThread(id: string, updates: Partial<MessageThread>): Promise<void>;
+  markThreadReadByUser(threadId: string): Promise<void>;
+  markThreadReadByAdmin(threadId: string): Promise<void>;
+  getUserUnreadCount(userId?: string, deviceId?: string): Promise<number>;
+
+  // Messages
+  createMessage(message: InsertMessage): Promise<Message>;
+  getThreadMessages(threadId: string): Promise<(Message & { senderUser?: User })[]>;
+  updateMessage(id: string, updates: Partial<Message>): Promise<void>;
+  deleteMessage(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -960,6 +981,160 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
 
     return result[0];
+  }
+
+  // Message Threads
+  async createMessageThread(thread: InsertMessageThread): Promise<MessageThread> {
+    const [created] = await db.insert(messageThreads).values(thread).returning();
+    return created;
+  }
+
+  async getUserMessageThreads(userId?: string, deviceId?: string): Promise<(MessageThread & { lastMessage?: Message })[]> {
+    // Build the base query
+    let query = db.select().from(messageThreads);
+
+    // Only add where clause if we have filters
+    if (userId) {
+      query = query.where(eq(messageThreads.userId, userId));
+    } else if (deviceId) {
+      query = query.where(eq(messageThreads.deviceId, deviceId));
+    }
+    // If neither userId nor deviceId is provided, get all threads (for admin)
+
+    const threads = await query.orderBy(desc(messageThreads.lastMessageAt));
+
+    // Get the last message for each thread (optimized to avoid N+1 queries)
+    const threadIds = threads.map(t => t.id);
+    
+    if (threadIds.length === 0) {
+      return threads.map(thread => ({ ...thread, lastMessage: undefined }));
+    }
+
+    // Get latest message for each thread in a single query
+    const latestMessages = await db
+      .select({
+        threadId: messages.threadId,
+        message: messages,
+      })
+      .from(messages)
+      .where(sql`${messages.threadId} = ANY(${threadIds}) AND ${messages.createdAt} = (
+        SELECT MAX(m2.created_at) 
+        FROM messages m2 
+        WHERE m2.thread_id = ${messages.threadId}
+      )`);
+
+    // Create a map for quick lookup
+    const lastMessageMap = new Map();
+    latestMessages.forEach(({ threadId, message }) => {
+      lastMessageMap.set(threadId, message);
+    });
+
+    // Combine threads with their last messages
+    return threads.map(thread => ({
+      ...thread,
+      lastMessage: lastMessageMap.get(thread.id) || undefined,
+    }));
+  }
+
+  async getMessageThread(id: string): Promise<MessageThread | undefined> {
+    const [thread] = await db.select().from(messageThreads).where(eq(messageThreads.id, id));
+    return thread;
+  }
+
+  async updateMessageThread(id: string, updates: Partial<MessageThread>): Promise<void> {
+    await db
+      .update(messageThreads)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(messageThreads.id, id));
+  }
+
+  async markThreadReadByUser(threadId: string): Promise<void> {
+    await db
+      .update(messageThreads)
+      .set({ unreadByUser: false, updatedAt: new Date() })
+      .where(eq(messageThreads.id, threadId));
+  }
+
+  async markThreadReadByAdmin(threadId: string): Promise<void> {
+    await db
+      .update(messageThreads)
+      .set({ unreadByAdmin: false, updatedAt: new Date() })
+      .where(eq(messageThreads.id, threadId));
+  }
+
+  async getUserUnreadCount(userId?: string, deviceId?: string): Promise<number> {
+    let whereConditions = [eq(messageThreads.unreadByUser, true)];
+
+    // Filter by user identity (userId or deviceId)
+    if (userId) {
+      whereConditions.push(eq(messageThreads.userId, userId));
+    } else if (deviceId) {
+      whereConditions.push(eq(messageThreads.deviceId, deviceId));
+    }
+
+    const result = await db
+      .select()
+      .from(messageThreads)
+      .where(and(...whereConditions));
+
+    return result.length;
+  }
+
+  // Messages
+  async createMessage(message: InsertMessage): Promise<Message> {
+    const [created] = await db.insert(messages).values(message).returning();
+    
+    // Update the thread's lastMessageAt timestamp and unread flags
+    await db
+      .update(messageThreads)
+      .set({ 
+        lastMessageAt: new Date(),
+        unreadByUser: message.isFromAdmin ? true : false,
+        unreadByAdmin: message.isFromAdmin ? false : true,
+        updatedAt: new Date()
+      })
+      .where(eq(messageThreads.id, message.threadId));
+
+    return created;
+  }
+
+  async getThreadMessages(threadId: string): Promise<(Message & { senderUser?: User })[]> {
+    const messageResults = await db
+      .select()
+      .from(messages)
+      .where(eq(messages.threadId, threadId))
+      .orderBy(messages.createdAt);
+
+    // Get related users for each message
+    const results = [];
+    for (const message of messageResults) {
+      let senderUser = null;
+      if (message.senderUserId) {
+        const [userResult] = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, message.senderUserId));
+        senderUser = userResult;
+      }
+
+      results.push({
+        ...message,
+        senderUser,
+      });
+    }
+
+    return results as (Message & { senderUser?: User })[];
+  }
+
+  async updateMessage(id: string, updates: Partial<Message>): Promise<void> {
+    await db
+      .update(messages)
+      .set({ ...updates, isEdited: true, editedAt: new Date() })
+      .where(eq(messages.id, id));
+  }
+
+  async deleteMessage(id: string): Promise<void> {
+    await db.delete(messages).where(eq(messages.id, id));
   }
 }
 
