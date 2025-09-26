@@ -3,6 +3,8 @@ import { Home, MessageSquare, Plus, User, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "./ThemeProvider";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
 
 interface BottomNavProps {
   activeTab: string;
@@ -11,6 +13,13 @@ interface BottomNavProps {
 
 export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   const { theme, setTheme } = useTheme();
+
+  // Fetch unread message count
+  const { data: unreadCount } = useQuery<{ count: number }>({
+    queryKey: ["/api/threads/unread/count"],
+    staleTime: 30000, // Cache for 30 seconds
+    refetchInterval: 60000, // Refetch every minute
+  });
 
   const navItems = [
     { id: 'menu', icon: Home, label: 'Menu' },
@@ -26,14 +35,25 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
             key={item.id}
             onClick={() => onTabChange(item.id)}
             className={cn(
-              "flex flex-col items-center gap-1 p-2 rounded-lg transition-colors hover-elevate",
+              "flex flex-col items-center gap-1 p-2 rounded-lg transition-colors hover-elevate relative",
               activeTab === item.id
                 ? "text-primary"
                 : "text-muted-foreground"
             )}
             data-testid={`button-nav-${item.id}`}
           >
-            <item.icon className="w-5 h-5" />
+            <div className="relative">
+              <item.icon className="w-5 h-5" />
+              {item.id === 'profile' && unreadCount && unreadCount.count > 0 && (
+                <Badge 
+                  variant="destructive" 
+                  className="absolute -top-2 -right-2 h-4 w-4 p-0 text-xs flex items-center justify-center min-w-4"
+                  data-testid="badge-unread-messages"
+                >
+                  {unreadCount.count > 99 ? '99+' : unreadCount.count}
+                </Badge>
+              )}
+            </div>
             <span className="text-xs font-medium">{item.label}</span>
           </button>
         ))}
