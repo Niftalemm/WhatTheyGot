@@ -9,7 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Plus, MessageSquare, Send, Edit, Trash2, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Plus, MessageSquare, Send, Edit, Trash2, Eye, EyeOff, BarChart3 } from 'lucide-react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 
 interface AdminMessage {
   id: string;
@@ -239,6 +241,115 @@ export default function AdminMessages() {
         variant: 'destructive',
       });
     }
+  };
+
+  // Poll voting component
+  const PollDisplay = ({ message }: { message: AdminMessage }) => {
+    const [hasVoted, setHasVoted] = useState(false);
+    const [selectedOption, setSelectedOption] = useState<string>('');
+
+    // Query to get poll results
+    const { data: pollResults, refetch: refetchResults } = useQuery({
+      queryKey: ['poll-results', message.id],
+      queryFn: () => fetch(`/api/polls/${message.id}/results`).then(res => res.json()),
+      enabled: message.type === 'poll',
+      refetchInterval: 2000, // Real-time updates every 2 seconds
+    });
+
+    // Voting mutation
+    const voteMutation = useMutation({
+      mutationFn: async (optionId: string) => {
+        return apiRequest(`/api/polls/${message.id}/vote`, {
+          method: 'POST',
+          body: { optionId }
+        });
+      },
+      onSuccess: () => {
+        setHasVoted(true);
+        refetchResults();
+        toast({
+          title: 'Vote Recorded!',
+          description: 'Your vote has been counted.',
+        });
+      },
+      onError: () => {
+        toast({
+          title: 'Error',
+          description: 'Failed to record vote. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    });
+
+    const handleVote = () => {
+      if (selectedOption && !hasVoted) {
+        voteMutation.mutate(selectedOption);
+      }
+    };
+
+    const totalVotes = pollResults?.results?.reduce((sum: number, result: any) => sum + result.voteCount, 0) || 0;
+
+    return (
+      <div className="space-y-4">
+        <div className="bg-muted/20 p-4 rounded-lg">
+          <h4 className="font-medium text-green-600 dark:text-green-400 mb-3">
+            <BarChart3 className="w-4 h-4 inline mr-2" />
+            {message.pollQuestion}
+          </h4>
+          
+          {!hasVoted ? (
+            <div className="space-y-2">
+              {pollResults?.options?.map((option: any) => (
+                <label key={option.id} className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name={`poll-${message.id}`}
+                    value={option.id}
+                    checked={selectedOption === option.id}
+                    onChange={(e) => setSelectedOption(e.target.value)}
+                    className="text-green-600"
+                    data-testid={`radio-poll-option-${option.id}`}
+                  />
+                  <span>{option.optionText}</span>
+                </label>
+              ))}
+              <Button 
+                onClick={handleVote}
+                disabled={!selectedOption || voteMutation.isPending}
+                size="sm"
+                className="mt-2"
+                data-testid="button-vote"
+              >
+                {voteMutation.isPending ? 'Voting...' : 'Vote'}
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground mb-3">
+                Poll Results ({totalVotes} votes)
+              </p>
+              {pollResults?.results?.map((result: any) => {
+                const percentage = totalVotes > 0 ? Math.round((result.voteCount / totalVotes) * 100) : 0;
+                return (
+                  <div key={result.optionId} className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span>{result.optionText}</span>
+                      <span className="text-muted-foreground">{percentage}% ({result.voteCount})</span>
+                    </div>
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-green-500 transition-all duration-300"
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
   const getTypeColor = (type: string) => {
@@ -506,6 +617,14 @@ export default function AdminMessages() {
                             <p className="text-sm text-muted-foreground mb-2">
                               {message.content}
                             </p>
+                            
+                            {/* Display poll voting interface for poll messages */}
+                            {message.type === 'poll' && (
+                              <div className="mt-4">
+                                <PollDisplay message={message} />
+                              </div>
+                            )}
+                            
                             <div className="flex items-center space-x-4 text-xs text-muted-foreground">
                               <span>Type: {message.type}</span>
                               <span>Shows on: {message.showOn?.join(', ') || 'All pages'}</span>

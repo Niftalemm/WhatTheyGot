@@ -2,10 +2,29 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LogOut, User, Star, MessageSquare, Camera, TrendingUp } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { LogOut, User, Star, MessageSquare, Camera, TrendingUp, AlertCircle, Info, Warning, BarChart3, Bell } from "lucide-react";
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
+
+interface Message {
+  id: string;
+  title: string;
+  content: string;
+  type: 'announcement' | 'alert' | 'info' | 'warning' | 'poll';
+  isActive: boolean;
+  showOn: string[];
+  pollQuestion?: string;
+  pollOptions?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
 
 export default function Home() {
   const { user } = useAuth();
+  const { toast } = useToast();
 
   const handleLogout = () => {
     window.location.href = "/api/logout";
@@ -34,6 +53,156 @@ export default function Home() {
       .slice(0, 2);
   };
 
+  // Query to get active messages for home page
+  const { data: messages, isLoading: messagesLoading } = useQuery({
+    queryKey: ['home-messages'],
+    queryFn: () => fetch('/api/messages/active?showOn=all,home').then(res => res.json()),
+  });
+
+  // Poll voting component for Home page
+  const HomePollDisplay = ({ message }: { message: Message }) => {
+    const [hasVoted, setHasVoted] = useState(false);
+    const [selectedOption, setSelectedOption] = useState<string>('');
+
+    // Query to get poll results and check if user voted
+    const { data: pollResults, refetch: refetchResults } = useQuery({
+      queryKey: ['poll-results', message.id],
+      queryFn: async () => {
+        const response = await fetch(`/api/polls/${message.id}/results`);
+        const data = await response.json();
+        
+        // Check if user has already voted
+        const voteResponse = await fetch(`/api/polls/${message.id}/user-vote`);
+        if (voteResponse.ok) {
+          const voteData = await voteResponse.json();
+          if (voteData.hasVoted) {
+            setHasVoted(true);
+            setSelectedOption(voteData.optionId);
+          }
+        }
+        
+        return data;
+      },
+      enabled: message.type === 'poll',
+      refetchInterval: hasVoted ? 3000 : false, // Only poll for results if already voted
+    });
+
+    // Voting mutation
+    const voteMutation = useMutation({
+      mutationFn: async (optionId: string) => {
+        return apiRequest(`/api/polls/${message.id}/vote`, {
+          method: 'POST',
+          body: { optionId }
+        });
+      },
+      onSuccess: () => {
+        setHasVoted(true);
+        refetchResults();
+        toast({
+          title: 'Vote Recorded!',
+          description: 'Your vote has been counted.',
+        });
+      },
+      onError: () => {
+        toast({
+          title: 'Error',
+          description: 'Failed to record vote. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    });
+
+    const handleVote = () => {
+      if (selectedOption && !hasVoted) {
+        voteMutation.mutate(selectedOption);
+      }
+    };
+
+    const totalVotes = pollResults?.results?.reduce((sum: number, result: any) => sum + result.voteCount, 0) || 0;
+
+    return (
+      <div className="space-y-4">
+        <div className="bg-green-50 dark:bg-green-950 p-4 rounded-lg border border-green-200 dark:border-green-800">
+          <h4 className="font-medium text-green-700 dark:text-green-300 mb-3 flex items-center">
+            <BarChart3 className="w-4 h-4 mr-2" />
+            {message.pollQuestion}
+          </h4>
+          
+          {!hasVoted ? (
+            <div className="space-y-2">
+              {pollResults?.options?.map((option: any) => (
+                <label key={option.id} className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-green-100 dark:hover:bg-green-900">
+                  <input
+                    type="radio"
+                    name={`poll-${message.id}`}
+                    value={option.id}
+                    checked={selectedOption === option.id}
+                    onChange={(e) => setSelectedOption(e.target.value)}
+                    className="text-green-600"
+                    data-testid={`radio-poll-option-${option.id}`}
+                  />
+                  <span className="text-sm">{option.optionText}</span>
+                </label>
+              ))}
+              <Button 
+                onClick={handleVote}
+                disabled={!selectedOption || voteMutation.isPending}
+                size="sm"
+                className="mt-3 bg-green-600 hover:bg-green-700"
+                data-testid="button-vote-poll"
+              >
+                {voteMutation.isPending ? 'Voting...' : 'Vote'}
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-sm text-green-600 dark:text-green-400 mb-3">
+                Poll Results ({totalVotes} votes)
+              </p>
+              {pollResults?.results?.map((result: any) => {
+                const percentage = totalVotes > 0 ? Math.round((result.voteCount / totalVotes) * 100) : 0;
+                return (
+                  <div key={result.optionId} className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span>{result.optionText}</span>
+                      <span className="text-green-600 dark:text-green-400">{percentage}% ({result.voteCount})</span>
+                    </div>
+                    <div className="h-2 bg-green-100 dark:bg-green-900 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-green-500 transition-all duration-500"
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const getMessageIcon = (type: string) => {
+    switch (type) {
+      case 'alert': return <AlertCircle className="w-4 h-4" />;
+      case 'warning': return <Warning className="w-4 h-4" />;
+      case 'info': return <Info className="w-4 h-4" />;
+      case 'poll': return <BarChart3 className="w-4 h-4" />;
+      default: return <Bell className="w-4 h-4" />;
+    }
+  };
+
+  const getMessageColor = (type: string) => {
+    switch (type) {
+      case 'alert': return 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950';
+      case 'warning': return 'border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950';
+      case 'info': return 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950';
+      case 'poll': return 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950';
+      default: return 'border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-950';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
@@ -58,6 +227,47 @@ export default function Home() {
             Sign Out
           </Button>
         </div>
+
+        {/* Messages & Announcements */}
+        {!messagesLoading && messages && messages.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-lg font-semibold mb-4 flex items-center">
+              <Bell className="w-5 h-5 mr-2" />
+              Campus Updates
+            </h2>
+            <div className="space-y-4">
+              {messages.map((message: Message) => (
+                <Card key={message.id} className={`${getMessageColor(message.type)} border`}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start space-x-3">
+                      <div className="mt-1">
+                        {getMessageIcon(message.type)}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-medium text-sm mb-1">{message.title}</h3>
+                        <p className="text-sm text-muted-foreground mb-3">{message.content}</p>
+                        
+                        {/* Display poll voting interface for poll messages */}
+                        {message.type === 'poll' && (
+                          <HomePollDisplay message={message} />
+                        )}
+                        
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {new Date(message.createdAt).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Quick Stats Cards */}
         <div className="grid md:grid-cols-4 gap-4 mb-8">

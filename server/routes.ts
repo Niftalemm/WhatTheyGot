@@ -1389,12 +1389,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/polls/:pollId/vote", async (req, res) => {
     try {
       const { pollId } = req.params;
-      const { selectedOption } = req.body;
+      const { optionId, selectedOption } = req.body;
       const deviceId = generateDeviceId(req);
       
+      // Accept either optionId or selectedOption parameter names
+      const chosenOption = optionId || selectedOption;
+      
       // Validate input
-      if (!selectedOption) {
-        return res.status(400).json({ error: "Selected option is required" });
+      if (!chosenOption) {
+        return res.status(400).json({ error: "Option ID is required" });
       }
 
       // Check if user is authenticated
@@ -1402,7 +1405,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const voteData = insertPollVoteSchema.parse({
         pollId,
-        selectedOption,
+        selectedOption: chosenOption,
         userId: userId || undefined,
         deviceId: userId ? undefined : deviceId,
       });
@@ -1411,6 +1414,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true, vote });
     } catch (error) {
       console.error("Error casting vote:", error);
+      if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
+        return res.status(409).json({ error: "You have already voted on this poll" });
+      }
       res.status(500).json({ error: "Failed to cast vote" });
     }
   });
@@ -1419,7 +1425,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { pollId } = req.params;
       const results = await storage.getPollResults(pollId);
-      res.json(results);
+      const message = await storage.getAdminMessage(pollId);
+      
+      // Create options array with IDs for frontend compatibility
+      const options = message?.pollOptions?.map((optionText, index) => ({
+        id: `${pollId}-option-${index}`,
+        optionText,
+      })) || [];
+
+      res.json({ results, options });
     } catch (error) {
       console.error("Error fetching poll results:", error);
       res.status(500).json({ error: "Failed to fetch poll results" });
@@ -1433,10 +1447,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session?.user?.id;
 
       const userVote = await storage.getUserPollVote(pollId, userId, deviceId);
-      res.json({ userVote });
+      res.json({ 
+        hasVoted: !!userVote,
+        optionId: userVote?.selectedOption || null,
+        userVote 
+      });
     } catch (error) {
       console.error("Error fetching user vote:", error);
       res.status(500).json({ error: "Failed to fetch user vote" });
+    }
+  });
+
+  // User-facing messages (active only)
+  app.get("/api/messages/active", async (req, res) => {
+    try {
+      const { showOn } = req.query;
+      const messages = await storage.getActiveAdminMessages();
+      
+      // Filter by showOn parameter if provided
+      let filteredMessages = messages;
+      if (showOn && typeof showOn === 'string') {
+        const showOnArray = showOn.split(',');
+        filteredMessages = messages.filter(message => 
+          message.showOn?.some(page => showOnArray.includes(page)) || 
+          message.showOn?.includes('all') || 
+          showOnArray.includes('all')
+        );
+      }
+
+      res.json(filteredMessages);
+    } catch (error) {
+      console.error("Error fetching active messages:", error);
+      res.status(500).json({ error: "Failed to fetch active messages" });
     }
   });
 
