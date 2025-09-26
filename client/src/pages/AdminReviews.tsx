@@ -308,7 +308,7 @@ export default function AdminReviews() {
                     />
                   )}
                   <div className="text-xs text-muted-foreground mt-2">
-                    Device ID: {review.deviceId.substring(0, 12)}...
+                    Device ID: {review.deviceId ? review.deviceId.substring(0, 12) + '...' : 'Not available'}
                   </div>
                 </CardContent>
               </Card>
